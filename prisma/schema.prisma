@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  firstName         String
+  lastName          String
+  username          String    @unique
+  email             String    @unique
+  emailVerifiedAt   DateTime?
+  password          String
+  rememberToken     String?
+  image             String?
+  role              Role      @default(USER)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Product {
+  id                String    @id @default(cuid())
+  spuNo             String    @unique @map("spu_no")
+  itemNo            String?   @unique @map("item_no")
+  slug              String    @unique
+  fullCategory      String    @map("full_category")
+  category1         String    @map("category_1")
+  category2         String?   @map("category_2")
+  category3         String?   @map("category_3")
+  category4         String?   @map("category_4")
+  name              String
+  supplier          String?
+  brand             String?
+  vt1               String?   @map("vt1")
+  vv1               String?   @map("vv1")
+  vt2               String?   @map("vt2")
+  vv2               String?   @map("vv2")
+  sku               String?   @unique
+  msrp              Decimal?  @db.Decimal(10, 2)
+  salePrice         Decimal?  @db.Decimal(10, 2) @map("sale_price")
+  discountedPrice   Decimal?  @db.Decimal(10, 2) @map("discounted_price")
+  dropshippingPrice Decimal?  @db.Decimal(10, 2) @map("dropshipping_price")
+  map               String?
+  inventory         String    @default("0")
+  inventoryLoc      String?   @map("inventory_loc")
+  shippingMethod    String?   @map("shipping_method")
+  shipTo            String?   @map("ship_to")
+  shippingCost      String    @default("0") @map("shipping_cost")
+  promotionStart    String?   @map("promotion_start")
+  promotionEnd      String?   @map("promotion_end")
+  mainImage         String    @map("main_image")
+  images            Json?     // JSON array of image URLs
+  description       String?   @db.Text
+  shortDescription  String?   @db.Text @map("short_description")
+  upc               String?
+  asin              String?
+  processingTime    String?   @map("processing_time")
+  ean               String?
+  dsFrom            String?   @map("ds_from")
+  dealId            String?   @map("deal_id")
+  status            String    @default("active")
+  metaTitle         String?   @map("meta_title")
+  metaDescription   String?   @db.Text @map("meta_description")
+  metaKeywords      String?   @map("meta_keywords")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([spuNo])
+  @@index([itemNo])
+  @@index([slug])
+  @@index([fullCategory])
+  @@index([category1])
+  @@index([category2])
+  @@index([category3])
+  @@index([category4])
+  @@index([name])
+  @@index([supplier])
+  @@index([brand])
+  @@index([vt1])
+  @@index([vv1])
+  @@index([vt2])
+  @@index([vv2])
+  @@index([sku])
+  @@index([salePrice])
+  @@index([discountedPrice])
+  @@index([dropshippingPrice])
+  @@index([map])
+  @@index([dsFrom])
+  @@index([status])
+}
+
+model Cart {
+  id           String   @id @default(cuid())
+  userType     String   @default("guest") @map("user_type")
+  userId       Int      @map("user_id")
+  prodId       String   @map("prod_id")
+  prodQuantity Int      @map("prod_quantity")
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([prodId])
+  @@index([status])
+}
+
+enum Role {
+  USER
+  ADMIN
+}

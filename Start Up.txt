@@ -1,0 +1,8 @@
+Postgresql database superuser password : postgresql
+port : 5432
+
+
+PRISMA INSTALLATION THEN REN
+ - pm install prisma @prisma/client
+ - npx prisma generate
+ - npx prisma studio
