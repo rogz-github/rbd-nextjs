@@ -6,3 +6,17 @@ PRISMA INSTALLATION THEN REN
  - pm install prisma @prisma/client
  - npx prisma generate
  - npx prisma studio
+
+
+
+ ssh-keygen -t ed25519 -C "rogz.nunez2013@gmail.com"
+
+ My 2 github
+ - git@github-rogz-github -> for rogz.nunez2013@gmail.com
+ - git@github-rogzgithub2024 -> for rogz.n@allineeditsolutions.com
+
+ to run change in github
+ - ssh -T git@github-rogz-github
+ - ssh -T git@github-rogzgithub2024
+
+ make sure in PowertShell Administrator

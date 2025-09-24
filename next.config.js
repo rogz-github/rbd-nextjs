@@ -17,11 +17,11 @@ const nextConfig = {
     ],
   },
   env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    DATABASE_URL: process.env.DATABASE_URL,
-    PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
-    PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-key',
+    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/rbd_nextjs',
+    PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID || '',
+    PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET || '',
   },
 }
 
