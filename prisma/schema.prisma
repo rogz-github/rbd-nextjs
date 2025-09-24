@@ -111,6 +111,28 @@ model Cart {
   @@index([status])
 }
 
+model Order {
+  id              String    @id @default(cuid())
+  paypalOrderId   String    @unique @map("paypal_order_id")
+  status          String    @default("created") // created, captured, completed, failed
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD") @db.VarChar(3)
+  userId          String?   @map("user_id") // Can be guest or registered user
+  userType        String    @default("guest") @map("user_type") // guest or registered
+  cartItems       Json?     @map("cart_items") // Store cart items as JSON
+  paypalResponse  Json?     @map("paypal_response") // Store PayPal API response
+  captureId       String?   @map("capture_id") // PayPal capture ID
+  capturedAt      DateTime? @map("captured_at")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([paypalOrderId])
+  @@index([status])
+  @@index([userId])
+  @@index([userType])
+  @@index([createdAt])
+}
+
 enum Role {
   USER
   ADMIN
