@@ -23,7 +23,7 @@ interface CheckoutFormData {
 }
 
 export default function CheckoutPage() {
-  const { state, dispatch } = useCart()
+  const { state, clearCart } = useCart()
   const { data: session } = useSession()
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
 
       if (response.ok) {
         // Clear cart
-        dispatch({ type: 'CLEAR_CART' })
+        await clearCart()
         
         // Redirect to success page
         const order = await response.json()
@@ -303,13 +303,14 @@ export default function CheckoutPage() {
                   </p>
                   <PayPalScriptProvider
                     options={{
-                      'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb',
+                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb',
                       currency: 'USD',
                     }}
                   >
                     <PayPalButtons
                       createOrder={(data, actions) => {
                         return actions.order.create({
+                          intent: 'CAPTURE',
                           purchase_units: [
                             {
                               amount: {
@@ -341,24 +342,24 @@ export default function CheckoutPage() {
                 
                 <div className="space-y-4 mb-6">
                   {state.items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
+                    <div key={item.cart_id} className="flex items-center space-x-3">
                       <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden">
                         <img
-                          src={item.product.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}
-                          alt={item.product.name}
+                          src={item.main_image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}
+                          alt={item.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {item.product.name}
+                          {item.name}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Qty: {item.quantity}
+                          Qty: {item.prod_quantity}
                         </p>
                       </div>
                       <p className="text-sm font-medium text-gray-900">
-                        ${(Number(item.product.price) * item.quantity).toFixed(2)}
+                        ${(Number(item.sale_price) * item.prod_quantity).toFixed(2)}
                       </p>
                     </div>
                   ))}

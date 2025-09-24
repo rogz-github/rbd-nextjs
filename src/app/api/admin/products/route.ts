@@ -12,14 +12,6 @@ export async function GET(request: NextRequest) {
     }
 
     const products = await prisma.product.findMany({
-      include: {
-        category: true,
-        _count: {
-          select: {
-            orderItems: true
-          }
-        }
-      },
       orderBy: { createdAt: 'desc' }
     })
 
@@ -45,22 +37,22 @@ export async function POST(request: NextRequest) {
     
     const product = await prisma.product.create({
       data: {
-        name: data.name,
+        spuNo: data.spuNo || `SPU-${Date.now()}`,
         slug: data.slug,
+        fullCategory: data.fullCategory || data.category1 || "General",
+        category1: data.category1,
+        name: data.name,
         description: data.description,
-        price: data.price,
-        comparePrice: data.comparePrice,
+        salePrice: data.salePrice,
+        msrp: data.msrp,
         sku: data.sku,
-        inventory: data.inventory,
+        inventory: data.inventory || "0",
+        mainImage: data.mainImage || "/images/placeholder-product.jpg",
         images: data.images || [],
-        featured: data.featured || false,
-        published: data.published || false,
-        seoTitle: data.seoTitle,
-        seoDescription: data.seoDescription,
-        categoryId: data.categoryId,
-      },
-      include: {
-        category: true
+        brand: data.brand,
+        status: data.status || "active",
+        metaTitle: data.metaTitle,
+        metaDescription: data.metaDescription,
       }
     })
 

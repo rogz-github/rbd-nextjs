@@ -8,7 +8,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 
 export default function CartPage() {
-  const { state, dispatch } = useCart()
+  const { state, updateQuantity, removeFromCart, clearCart } = useCart()
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
 
   const handleUpdateQuantity = async (productId: string, newQuantity: number) => {
@@ -16,28 +16,32 @@ export default function CartPage() {
 
     setIsUpdating(productId)
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 300))
-    
-    dispatch({
-      type: 'UPDATE_QUANTITY',
-      payload: { productId, quantity: newQuantity }
-    })
-    
-    setIsUpdating(null)
+    try {
+      await updateQuantity(productId, newQuantity)
+      toast.success('Quantity updated')
+    } catch (error) {
+      toast.error('Failed to update quantity')
+    } finally {
+      setIsUpdating(null)
+    }
   }
 
-  const handleRemoveItem = (productId: string) => {
-    dispatch({
-      type: 'REMOVE_ITEM',
-      payload: { productId }
-    })
-    toast.success('Item removed from cart')
+  const handleRemoveItem = async (productId: string) => {
+    try {
+      await removeFromCart(productId)
+      toast.success('Item removed from cart')
+    } catch (error) {
+      toast.error('Failed to remove item')
+    }
   }
 
-  const handleClearCart = () => {
-    dispatch({ type: 'CLEAR_CART' })
-    toast.success('Cart cleared')
+  const handleClearCart = async () => {
+    try {
+      await clearCart()
+      toast.success('Cart cleared')
+    } catch (error) {
+      toast.error('Failed to clear cart')
+    }
   }
 
   if (state.items.length === 0) {
@@ -85,44 +89,45 @@ export default function CartPage() {
                 
                 <div className="divide-y divide-gray-200">
                   {state.items.map((item) => (
-                    <div key={item.id} className="p-6">
+                    <div key={item.cart_id} className="p-6">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
                           <div className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
                             <Image
-                              src={item.product.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop'}
-                              alt={item.product.name}
+                              src={item.main_image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&h=200&fit=crop'}
+                              alt={item.name}
                               width={80}
                               height={80}
                               className="w-full h-full object-cover"
+                              style={{ width: 'auto', height: 'auto' }}
                             />
                           </div>
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-medium text-gray-900 truncate">
-                            {item.product.name}
+                            {item.name}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            ${Number(item.product.price).toFixed(2)} each
+                            ${Number(item.sale_price).toFixed(2)} each
                           </p>
                         </div>
                         
                         <div className="flex items-center space-x-3">
                           <div className="flex items-center border border-gray-300 rounded-lg">
                             <button
-                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                              disabled={isUpdating === item.product.id || item.quantity <= 1}
+                              onClick={() => handleUpdateQuantity(item.prod_id, item.prod_quantity - 1)}
+                              disabled={isUpdating === item.prod_id || item.prod_quantity <= 1}
                               className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
                             <span className="px-3 py-2 text-sm font-medium min-w-[3rem] text-center">
-                              {isUpdating === item.product.id ? '...' : item.quantity}
+                              {isUpdating === item.prod_id ? '...' : item.prod_quantity}
                             </span>
                             <button
-                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
-                              disabled={isUpdating === item.product.id}
+                              onClick={() => handleUpdateQuantity(item.prod_id, item.prod_quantity + 1)}
+                              disabled={isUpdating === item.prod_id}
                               className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-4 h-4" />
@@ -131,12 +136,12 @@ export default function CartPage() {
                           
                           <div className="text-right">
                             <p className="text-lg font-semibold text-gray-900">
-                              ${(Number(item.product.price) * item.quantity).toFixed(2)}
+                              ${(Number(item.sale_price) * item.prod_quantity).toFixed(2)}
                             </p>
                           </div>
                           
                           <button
-                            onClick={() => handleRemoveItem(item.product.id)}
+                            onClick={() => handleRemoveItem(item.prod_id)}
                             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -5,71 +5,19 @@ export async function POST(request: NextRequest) {
   try {
     const orderData = await request.json()
     
-    // Create order with related data
+    // Create order with PayPal integration structure
     const order = await prisma.order.create({
       data: {
-        orderNumber: orderData.orderNumber,
-        total: orderData.total,
-        subtotal: orderData.subtotal,
-        tax: orderData.tax,
-        shipping: orderData.shipping,
-        paymentId: orderData.paymentId,
-        paymentMethod: orderData.paymentMethod,
-        status: orderData.status,
-        paymentStatus: orderData.paymentStatus,
+        paypalOrderId: orderData.paypalOrderId,
+        status: orderData.status || 'created',
+        amount: orderData.amount,
+        currency: orderData.currency || 'USD',
         userId: orderData.userId,
-        orderItems: {
-          create: orderData.items.map((item: any) => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: Number(item.product.price),
-          }))
-        },
-        shippingAddress: {
-          create: {
-            firstName: orderData.shippingAddress.firstName,
-            lastName: orderData.shippingAddress.lastName,
-            address1: orderData.shippingAddress.address1,
-            address2: orderData.shippingAddress.address2,
-            city: orderData.shippingAddress.city,
-            state: orderData.shippingAddress.state,
-            zip: orderData.shippingAddress.zip,
-            country: orderData.shippingAddress.country,
-            phone: orderData.shippingAddress.phone,
-          }
-        },
-        billingAddress: {
-          create: orderData.sameAsBilling ? {
-            firstName: orderData.shippingAddress.firstName,
-            lastName: orderData.shippingAddress.lastName,
-            address1: orderData.shippingAddress.address1,
-            address2: orderData.shippingAddress.address2,
-            city: orderData.shippingAddress.city,
-            state: orderData.shippingAddress.state,
-            zip: orderData.shippingAddress.zip,
-            country: orderData.shippingAddress.country,
-            phone: orderData.shippingAddress.phone,
-          } : {
-            firstName: orderData.billingAddress.firstName,
-            lastName: orderData.billingAddress.lastName,
-            address1: orderData.billingAddress.address1,
-            address2: orderData.billingAddress.address2,
-            city: orderData.billingAddress.city,
-            state: orderData.billingAddress.state,
-            zip: orderData.billingAddress.zip,
-            country: orderData.billingAddress.country,
-            phone: orderData.billingAddress.phone,
-          }
-        }
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        },
-        shippingAddress: true,
-        billingAddress: true
+        userType: orderData.userType || 'guest',
+        cartItems: orderData.cartItems,
+        paypalResponse: orderData.paypalResponse,
+        captureId: orderData.captureId,
+        capturedAt: orderData.capturedAt ? new Date(orderData.capturedAt) : null
       }
     })
 
@@ -97,15 +45,6 @@ export async function GET(request: NextRequest) {
 
     const orders = await prisma.order.findMany({
       where: { userId },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        },
-        shippingAddress: true,
-        billingAddress: true
-      },
       orderBy: { createdAt: 'desc' }
     })
 

@@ -109,6 +109,7 @@ export default function CartPage() {
                               width={80}
                               height={80}
                               className="w-full h-full object-cover"
+                              style={{ width: 'auto', height: 'auto' }}
                               unoptimized={item.main_image?.startsWith('https://')}
                             />
                           </div>
