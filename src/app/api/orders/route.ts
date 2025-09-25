@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     const orders = await prisma.order.findMany({
       where: { coUserId: parseInt(userId) },
-      orderBy: { coCreated: 'desc' }
+      orderBy: { coCreated: 'desc' as const }
     })
 
     return NextResponse.json(orders)

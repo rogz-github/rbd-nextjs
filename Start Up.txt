@@ -20,3 +20,7 @@ PRISMA INSTALLATION THEN REN
  - ssh -T git@github-rogzgithub2024
 
  make sure in PowertShell Administrator
+
+ npx prisma migrate deploy => to deploy migration to neon
+ npx prisma db seed => to generate dummy products
+ npx prisma studio => to run the prisma database

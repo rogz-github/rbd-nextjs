@@ -164,7 +164,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = async (productId: string, quantity: number = 1) => {
     try {
-      console.log('Cart context addToCart called:', { productId, quantity })
       dispatch({ type: 'SET_LOADING', payload: true })
       
       const requestBody: any = { productId, quantity }
@@ -183,7 +182,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       })
       
       const data = await response.json()
-      console.log('Cart add response:', data)
       
       if (data.success) {
         toast.success(data.message)
@@ -195,7 +193,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_LOADING', payload: false })
       }
     } catch (error) {
-      console.error('Error adding to cart:', error)
       toast.error('Failed to add item to cart')
       dispatch({ type: 'SET_LOADING', payload: false })
     }
