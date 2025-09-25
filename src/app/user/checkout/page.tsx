@@ -92,20 +92,7 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     
     try {
-      console.log('PayPal success callback triggered with details:', details)
-      console.log('PayPal Client ID:', process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID)
-      console.log('Cart state:', state)
-      console.log('Form data:', formData)
-      console.log('Total amount:', total)
-      
-      // Debug PayPal details structure
-      console.log('PayPal details structure:', {
-        id: details.id,
-        orderID: details.orderID,
-        payerID: details.payerID,
-        status: details.status,
-        details: details
-      })
+    
       
       // Validate cart has items
       if (!state.items || state.items.length === 0) {
@@ -172,15 +159,7 @@ export default function CheckoutPage() {
         }
       }
 
-      console.log('Sending order data to API:', orderData)
-      console.log('PayPal Order ID being sent:', paypalOrderId)
-      console.log('Order data validation:', {
-        hasAmount: !!orderData.amount,
-        amountValue: orderData.amount,
-        hasCartItems: !!orderData.cartItems,
-        cartItemsCount: orderData.cartItems?.length || 0,
-        paypalOrderIdInResponse: paypalOrderId
-      })
+   
       
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -191,7 +170,6 @@ export default function CheckoutPage() {
       })
 
       const orderResponse = await response.json()
-      console.log('Order API response:', { status: response.status, response: orderResponse })
       
       if (response.ok && orderResponse.success) {
         // Clear cart
@@ -200,14 +178,11 @@ export default function CheckoutPage() {
         // Redirect to success page
         router.push(`/user/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}`)
       } else {
-        console.error('Order creation failed:', orderResponse)
         const errorMessage = orderResponse.error || orderResponse.message || 'Failed to create order'
-        console.error('Error details:', errorMessage)
         toast.error(`Order failed: ${errorMessage}`)
         throw new Error(errorMessage)
       }
     } catch (error) {
-      console.error('Order creation error:', error)
       toast.error('Failed to process order. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -215,16 +190,11 @@ export default function CheckoutPage() {
   }
 
   const handlePayPalError = (error: any) => {
-    console.error('PayPal error details:', error)
-    console.error('PayPal error type:', typeof error)
-    console.error('PayPal error message:', error.message)
-    console.error('PayPal error code:', error.code)
     setPaypalError(`Payment failed: ${error.message || 'Please try again.'}`)
     toast.error(`Payment failed: ${error.message || 'Please try again.'}`)
   }
 
   const handlePayPalScriptError = (error: any) => {
-    console.error('PayPal script loading error:', error)
     setPaypalError('Failed to load PayPal. Please check your internet connection and try again.')
   }
 

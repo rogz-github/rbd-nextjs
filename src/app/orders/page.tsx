@@ -18,6 +18,7 @@ interface Order {
   billingAddress: string
   totalItems: number
   paypalResponse: any
+  coCreated: string
   createdAt: string
   updatedAt: string
 }
@@ -177,7 +178,7 @@ export default function OrdersPage() {
                       <div className="flex items-center space-x-6 text-sm text-gray-600">
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
-                          {new Date(order.createdAt).toLocaleDateString()}
+                          {new Date(order.coCreated).toLocaleDateString()}
                         </div>
                         <div className="flex items-center">
                           <DollarSign className="w-4 h-4 mr-1" />

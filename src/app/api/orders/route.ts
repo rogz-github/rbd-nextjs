@@ -29,16 +29,21 @@ export async function POST(request: NextRequest) {
     
     // Map the new order data to the actual database schema
     const mappedData: any = {
-      paypalOrderId: `ORDER-${Date.now()}`,
-      userId: orderData.userId || null,
-      userType: orderData.userType || 'guest',
-      amount: parseFloat((orderData.amount || 0).toString()),
-      currency: 'USD',
-      status: orderData.status === 'captured' ? 'Processing' : 'Pending',
-      cartItems: orderData.cartItems || [],
-      paypalResponse: orderData.paypalResponse || null,
-      captureId: orderData.captureId || null,
-      capturedAt: orderData.capturedAt ? new Date(orderData.capturedAt) : null
+      coOrderId: `ORDER-${Date.now()}`,
+      coUserId: parseInt(orderData.userId) || 0,
+      coType: orderData.userType || 'guest',
+      coNotes: `PayPal Order - ${Date.now()}`,
+      coSubtotal: parseFloat((orderData.orderDetails?.subtotal || orderData.amount || 0).toString()),
+      coTotalDiscount: 0,
+      coTotalPrice: parseFloat((orderData.amount || 0).toString()),
+      coPaymentType: 'PayPal',
+      coStatus: orderData.status === 'captured' ? 'Processing' : 'Pending',
+      coCreated: new Date().toISOString(),
+      orderItems: JSON.stringify(orderData.cartItems || []),
+      shippingAddress: JSON.stringify(orderData.orderDetails?.shippingAddress || {}),
+      billingAddress: JSON.stringify(orderData.orderDetails?.billingAddress || {}),
+      totalItems: orderData.cartItems?.length || 0,
+      paypalResponse: orderData.paypalResponse || null
     }
     
     console.log('Mapped data for database:', JSON.stringify(mappedData, null, 2))
@@ -47,13 +52,13 @@ export async function POST(request: NextRequest) {
       data: mappedData
     })
 
-    console.log('Order created successfully with ID:', order.id)
+    console.log('Order created successfully with ID:', order.coId)
     console.log('=== ORDER CREATION SUCCESS ===')
     
     return NextResponse.json({ 
       success: true, 
-      id: order.id,
-      orderNumber: orderData.orderDetails?.orderNumber || `ORD-${order.id}`,
+      id: order.coId,
+      orderNumber: orderData.orderDetails?.orderNumber || `ORD-${order.coId}`,
       message: 'Order created successfully'
     }, { status: 201 })
   } catch (error) {
@@ -87,8 +92,8 @@ export async function GET(request: NextRequest) {
     }
 
     const orders = await prisma.order.findMany({
-      where: { userId: userId },
-      orderBy: { createdAt: 'desc' }
+      where: { coUserId: parseInt(userId) },
+      orderBy: { coCreated: 'desc' }
     })
 
     return NextResponse.json(orders)

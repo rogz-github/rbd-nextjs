@@ -15,7 +15,7 @@ interface Order {
   orderItems: string
   shippingAddress: string
   paypalResponse: any
-  createdAt: string
+  coCreated: string
 }
 
 export default function CheckoutSuccessPage() {
@@ -99,7 +99,7 @@ export default function CheckoutSuccessPage() {
                   <div>
                     <p className="text-sm text-gray-600">Order Date</p>
                     <p className="font-medium text-gray-900">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {new Date(order.coCreated).toLocaleDateString()}
                     </p>
                   </div>
                   <div>
@@ -144,6 +144,7 @@ export default function CheckoutSuccessPage() {
                   })()}
                 </div>
               </div>
+
 
               {/* Shipping Address */}
               <div className="bg-white rounded-lg shadow-sm p-6">
