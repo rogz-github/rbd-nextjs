@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const order = await prisma.order.findUnique({
+    const order = await prisma.order.findFirst({
       where: { 
         coId: parseInt(params.id)
       }
