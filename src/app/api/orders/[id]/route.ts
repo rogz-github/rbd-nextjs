@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const order = await prisma.order.findUnique({
-      where: { id: params.id }
+      where: { coId: parseInt(params.id) }
     })
 
     if (!order) {

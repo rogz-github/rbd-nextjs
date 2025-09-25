@@ -1,5 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Updated: 2025-09-25 - Removed paypalOrderId field
 
 generator client {
   provider = "prisma-client-js"
@@ -112,25 +113,56 @@ model Cart {
 }
 
 model Order {
-  id              String    @id @default(cuid())
-  paypalOrderId   String    @unique @map("paypal_order_id")
-  status          String    @default("created") // created, captured, completed, failed
-  amount          Decimal   @db.Decimal(10, 2)
-  currency        String    @default("USD") @db.VarChar(3)
-  userId          String?   @map("user_id") // Can be guest or registered user
-  userType        String    @default("guest") @map("user_type") // guest or registered
-  cartItems       Json?     @map("cart_items") // Store cart items as JSON
-  paypalResponse  Json?     @map("paypal_response") // Store PayPal API response
-  captureId       String?   @map("capture_id") // PayPal capture ID
-  capturedAt      DateTime? @map("captured_at")
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  // Primary key
+  coId                    Int      @id @default(autoincrement()) @map("co_id")
+  
+  // Order identification
+  coOrderId               String   @map("co_order_id") @db.VarChar(1000)
+  coUserId                Int      @map("co_user_id")
+  
+  // Order details
+  coType                  String   @map("co_type") @db.VarChar(1000)
+  coNotes                 String   @map("co_notes") @db.Text
+  
+  // Pricing
+  coSubtotal              Decimal  @map("co_subtotal") @db.Decimal(10, 2)
+  coTotalDiscount         Decimal  @map("co_total_discount") @db.Decimal(10, 2)
+  coTotalPrice            Decimal  @map("co_total_price") @db.Decimal(10, 2)
+  
+  // Payment
+  coPaymentType           String   @map("co_payment_type") @db.VarChar(1000)
+  
+  // Status and dates
+  coStatus                String   @map("co_status") @default("Pending") @db.VarChar(1000)
+  coPendingDate           String?  @map("co_pending_date") @db.VarChar(1000)
+  coProcessingDate        String?  @map("co_processing_date") @db.VarChar(1000)
+  coDeliveredDate         String?  @map("co_delivered_date") @db.VarChar(1000)
+  coCancelledDate         String?  @map("co_cancelled_date") @db.VarChar(1000)
+  coCreated               String   @map("co_created") @db.VarChar(1000)
+  
+  // Additional fields
+  coStyle                 String   @map("co_style") @default("new") @db.VarChar(5)
+  coCoupoUsed             String?  @map("co_coupo_used") @db.VarChar(55)
+  coCouponDiscount        String?  @map("co_coupon_discount") @db.VarChar(55)
+  coUpdatedStatusTo       String?  @map("co_updated_status_to") @db.VarChar(100)
+  coUpdatedStatusDate     String?  @map("co_updated_status_date") @db.VarChar(100)
+  
+  // Order data
+  orderItems              String   @map("order_items") @default("[]") @db.Text
+  shippingAddress         String   @map("shipping_address") @default("{}") @db.Text
+  billingAddress          String   @map("billing_address") @default("{}") @db.Text
+  totalItems              Int      @map("total_items") @default(0)
+  
+  // PayPal response
+  paypalResponse          Json?    @map("paypal_response")
+  
+  // Timestamps
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
-  @@index([paypalOrderId])
-  @@index([status])
-  @@index([userId])
-  @@index([userType])
-  @@index([createdAt])
+  @@index([coOrderId])
+  @@index([coUserId])
+  @@index([coStatus])
 }
 
 enum Role {

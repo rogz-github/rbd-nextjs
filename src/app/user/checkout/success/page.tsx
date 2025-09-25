@@ -6,32 +6,16 @@ import Link from 'next/link'
 import { CheckCircle, Package, Truck, Mail } from 'lucide-react'
 
 interface Order {
-  id: string
-  orderNumber: string
-  total: number
-  status: string
-  paymentStatus: string
+  coId: number
+  coOrderId: string
+  coStatus: string
+  coTotalPrice: number
+  coUserId: number
+  coType: string
+  orderItems: string
+  shippingAddress: string
+  paypalResponse: any
   createdAt: string
-  orderItems: Array<{
-    id: string
-    quantity: number
-    price: number
-    product: {
-      id: string
-      name: string
-      image: string
-    }
-  }>
-  shippingAddress: {
-    firstName: string
-    lastName: string
-    address1: string
-    address2?: string
-    city: string
-    state: string
-    zip: string
-    country: string
-  }
 }
 
 export default function CheckoutSuccessPage() {
@@ -51,6 +35,7 @@ export default function CheckoutSuccessPage() {
       const response = await fetch(`/api/orders/${id}`)
       if (response.ok) {
         const orderData = await response.json()
+        console.log('Fetched order data:', orderData)
         setOrder(orderData)
       }
     } catch (error) {
@@ -109,7 +94,7 @@ export default function CheckoutSuccessPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Order Number</p>
-                    <p className="font-medium text-gray-900">{order.orderNumber}</p>
+                    <p className="font-medium text-gray-900">{order.coOrderId}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Order Date</p>
@@ -119,11 +104,11 @@ export default function CheckoutSuccessPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
-                    <p className="font-medium text-gray-900 capitalize">{order.status}</p>
+                    <p className="font-medium text-gray-900 capitalize">{order.coStatus}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Payment Status</p>
-                    <p className="font-medium text-gray-900 capitalize">{order.paymentStatus}</p>
+                    <p className="text-sm text-gray-600">User Type</p>
+                    <p className="font-medium text-gray-900 capitalize">{order.coType}</p>
                   </div>
                 </div>
               </div>
@@ -132,24 +117,31 @@ export default function CheckoutSuccessPage() {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
                 <div className="space-y-4">
-                  {order.orderItems.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
-                        <img
-                          src={item.product.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900">{item.product.name}</h3>
-                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                      </div>
-                      <p className="font-medium text-gray-900">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
+                  {(() => {
+                    try {
+                      const cartItems = JSON.parse(order.orderItems || '[]')
+                      return cartItems.map((item: any) => (
+                        <div key={item.cart_id} className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
+                            <img
+                              src={item.main_image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900">{item.name}</h3>
+                            <p className="text-sm text-gray-600">Quantity: {item.prod_quantity}</p>
+                          </div>
+                          <p className="font-medium text-gray-900">
+                            ${(Number(item.sale_price) * item.prod_quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      ))
+                    } catch (error) {
+                      return <p className="text-gray-500">Order items not available</p>
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -160,15 +152,31 @@ export default function CheckoutSuccessPage() {
                   Shipping Address
                 </h2>
                 <div className="text-gray-700">
-                  <p className="font-medium">
-                    {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-                  </p>
-                  <p>{order.shippingAddress.address1}</p>
-                  {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
+                  {(() => {
+                    try {
+                      const shippingAddress = JSON.parse(order.shippingAddress || '{}')
+                      if (shippingAddress.firstName) {
+                        return (
+                          <>
+                            <p className="font-medium">
+                              {shippingAddress.firstName} {shippingAddress.lastName}
+                            </p>
+                            <p>{shippingAddress.address1}</p>
+                            {shippingAddress.address2 && <p>{shippingAddress.address2}</p>}
+                            <p>
+                              {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zip}
+                            </p>
+                            <p>{shippingAddress.country}</p>
+                            <p className="text-sm text-gray-500 mt-2">Phone: {shippingAddress.phone}</p>
+                          </>
+                        )
+                      } else {
+                        return <p className="text-gray-500">Shipping address not available</p>
+                      }
+                    } catch (error) {
+                      return <p className="text-gray-500">Shipping address not available</p>
+                    }
+                  })()}
                 </div>
               </div>
             </div>
@@ -181,7 +189,7 @@ export default function CheckoutSuccessPage() {
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-gray-900">${(order.total * 0.92).toFixed(2)}</span>
+                    <span className="text-gray-900">${(order.coTotalPrice * 0.92).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
@@ -189,11 +197,11 @@ export default function CheckoutSuccessPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tax</span>
-                    <span className="text-gray-900">${(order.total * 0.08).toFixed(2)}</span>
+                    <span className="text-gray-900">${(order.coTotalPrice * 0.08).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-3">
                     <span className="text-gray-900">Total</span>
-                    <span className="text-gray-900">${order.total.toFixed(2)}</span>
+                    <span className="text-gray-900">${order.coTotalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 

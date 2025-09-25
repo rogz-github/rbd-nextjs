@@ -5,24 +5,34 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Testing database connection...')
     
-    // Simple query to test connection
-    const result = await prisma.$queryRaw`SELECT 1 as test`
-    console.log('Database connection successful:', result)
+    // Test basic database connection
+    await prisma.$connect()
+    console.log('Database connected successfully')
     
-    return NextResponse.json({
-      success: true,
+    // Test a simple query
+    const result = await prisma.$queryRaw`SELECT 1 as test`
+    console.log('Database query test result:', result)
+    
+    // Test Order table structure
+    const orderCount = await prisma.order.count()
+    console.log('Order table count:', orderCount)
+    
+    return NextResponse.json({ 
+      success: true, 
       message: 'Database connection successful',
-      result
+      orderCount: orderCount
     })
   } catch (error) {
-    console.error('Database connection error:', error)
+    console.error('Database connection test failed:', error)
     return NextResponse.json(
       { 
-        success: false, 
+        success: false,
         message: 'Database connection failed',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }

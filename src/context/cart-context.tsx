@@ -167,12 +167,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       console.log('Cart context addToCart called:', { productId, quantity })
       dispatch({ type: 'SET_LOADING', payload: true })
       
+      const requestBody: any = { productId, quantity }
+      
+      // Add guest user ID if not authenticated
+      if (!session && state.guestUserId) {
+        requestBody.guestUserId = state.guestUserId
+      }
+      
       const response = await fetch('/api/cart/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ productId, quantity }),
+        body: JSON.stringify(requestBody),
       })
       
       const data = await response.json()
@@ -198,12 +205,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       dispatch({ type: 'SET_UPDATING', payload: true })
       
+      const requestBody: any = { cartItemId, quantity }
+      
+      // Add guest user ID if not authenticated
+      if (!session && state.guestUserId) {
+        requestBody.guestUserId = state.guestUserId
+      }
+      
       const response = await fetch('/api/cart/update', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ cartItemId, quantity }),
+        body: JSON.stringify(requestBody),
       })
       
       const data = await response.json()
@@ -228,7 +242,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       
-      const response = await fetch(`/api/cart/remove?cartItemId=${cartItemId}`, {
+      // Build URL with guest user ID if not authenticated
+      let url = `/api/cart/remove?cartItemId=${cartItemId}`
+      if (!session && state.guestUserId) {
+        url += `&guestUserId=${state.guestUserId}`
+      }
+      
+      const response = await fetch(url, {
         method: 'DELETE',
       })
       

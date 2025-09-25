@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    const { cartItemId, quantity } = await request.json()
+    const { cartItemId, quantity, guestUserId } = await request.json()
 
     if (!cartItemId || quantity === undefined) {
       return NextResponse.json(
@@ -29,9 +29,12 @@ export async function PUT(request: NextRequest) {
     if (session?.user?.id) {
       userType = 'authenticated'
       userId = parseInt(session.user.id)
+    } else if (guestUserId) {
+      userType = 'guest'
+      userId = parseInt(guestUserId)
     } else {
       return NextResponse.json(
-        { success: false, message: 'User session required' },
+        { success: false, message: 'User session or guest user ID required' },
         { status: 401 }
       )
     }

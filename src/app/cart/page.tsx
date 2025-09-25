@@ -53,7 +53,11 @@ export default function CartPage() {
             <ShoppingBag className="w-24 h-24 text-gray-300 mx-auto mb-6" />
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
             <p className="text-gray-600 mb-8">Looks like you haven't added any items to your cart yet.</p>
-            <Link href="/products" className="btn btn-primary btn-lg">
+            <Link 
+              href="/products" 
+              className="inline-flex items-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <ShoppingBag className="w-5 h-5 mr-2" />
               Continue Shopping
             </Link>
           </div>
@@ -73,7 +77,10 @@ export default function CartPage() {
               {state.itemCount} {state.itemCount === 1 ? 'item' : 'items'} in your cart
             </p>
           </div>
-          <Link href="/products" className="flex items-center text-primary-600 hover:text-primary-700">
+          <Link 
+            href="/products" 
+            className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Continue Shopping
           </Link>
@@ -212,24 +219,19 @@ export default function CartPage() {
 
               {!state.updating && (
                 <>
-                  {session ? (
-                    <button className="w-full btn btn-primary btn-lg mb-4">
+                  <Link 
+                    href="/user/checkout" 
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-center block mb-4"
+                  >
+                    <div className="flex items-center justify-center">
+                      <ShoppingBag className="w-5 h-5 mr-2" />
                       Proceed to Checkout
-                    </button>
-                  ) : (
-                    <div className="space-y-3">
-                      <Link href="/auth/signin" className="w-full btn btn-primary btn-lg">
-                        Sign In to Checkout
-                      </Link>
-                      <Link href="/auth/signup" className="w-full btn btn-outline btn-lg">
-                        Create Account
-                      </Link>
                     </div>
-                  )}
+                  </Link>
 
                   <div className="mt-4 text-center">
                     <p className="text-sm text-gray-600">
-                      {session ? `Signed in as ${session.user?.name}` : 'Guest checkout available'}
+                      {session ? `Signed in as ${session.user?.name}` : 'Guest checkout available - no account required'}
                     </p>
                   </div>
                 </>

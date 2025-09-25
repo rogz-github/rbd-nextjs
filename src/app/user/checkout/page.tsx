@@ -27,6 +27,9 @@ export default function CheckoutPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [paypalLoaded, setPaypalLoaded] = useState(false)
+  const [paypalError, setPaypalError] = useState<string | null>(null)
+  const [paypalTimeout, setPaypalTimeout] = useState(false)
   const [formData, setFormData] = useState<CheckoutFormData>({
     email: session?.user?.email || '',
     firstName: '',
@@ -44,6 +47,32 @@ export default function CheckoutPage() {
   const shipping = state.total >= 50 ? 0 : 9.99
   const tax = state.total * 0.08
   const total = state.total + shipping + tax
+
+
+
+  // Handle PayPal script loading errors and timeout
+  useEffect(() => {
+    const handleScriptError = (event: ErrorEvent) => {
+      if (event.message && event.message.includes('paypal')) {
+        setPaypalError('Failed to load PayPal SDK. Please check your internet connection and PayPal configuration.')
+      }
+    }
+
+    // Set timeout for PayPal loading
+    const timeoutId = setTimeout(() => {
+      if (!paypalLoaded) {
+        setPaypalTimeout(true)
+        setPaypalError('PayPal is taking longer than expected to load. Alternative payment options are available below.')
+      }
+    }, 5000) // 5 second timeout
+
+    window.addEventListener('error', handleScriptError)
+    
+    return () => {
+      window.removeEventListener('error', handleScriptError)
+      clearTimeout(timeoutId)
+    }
+  }, [paypalLoaded])
 
   useEffect(() => {
     if (state.items.length === 0) {
@@ -63,44 +92,96 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     
     try {
+      console.log('PayPal success callback triggered with details:', details)
+      console.log('PayPal Client ID:', process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID)
+      console.log('Cart state:', state)
+      console.log('Form data:', formData)
+      console.log('Total amount:', total)
+      
+      // Debug PayPal details structure
+      console.log('PayPal details structure:', {
+        id: details.id,
+        orderID: details.orderID,
+        payerID: details.payerID,
+        status: details.status,
+        details: details
+      })
+      
+      // Validate cart has items
+      if (!state.items || state.items.length === 0) {
+        throw new Error('Cart is empty')
+      }
+      
+      // Get PayPal Order ID from details
+      const paypalOrderId = details.id || details.orderID
+      if (!paypalOrderId) {
+        console.error('No PayPal Order ID found in details:', details)
+        throw new Error('PayPal Order ID is required')
+      }
+      
       // Create order in database
       const orderData = {
-        orderNumber: `ORD-${Date.now()}`,
-        total: total,
-        subtotal: state.total,
-        tax: tax,
-        shipping: shipping,
-        paymentId: details.id,
-        paymentMethod: 'PayPal',
-        status: 'PENDING',
-        paymentStatus: 'PAID',
-        items: state.items,
-        shippingAddress: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          address1: formData.address,
-          address2: formData.apartment,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-          country: formData.country,
-          phone: formData.phone,
-        },
-        billingAddress: formData.sameAsBilling ? {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          address1: formData.address,
-          address2: formData.apartment,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-          country: formData.country,
-          phone: formData.phone,
-        } : formData.sameAsBilling,
-        userId: session?.user?.id || null,
-        email: formData.email,
+        status: 'captured',
+        amount: total,
+        currency: 'USD',
+        userId: session?.user?.id || parseInt(state.guestUserId || '0') || 0,
+        userType: session?.user?.id ? 'registered' : 'guest',
+        cartItems: state.items,
+        paypalResponse: details,
+        captureId: paypalOrderId,
+        capturedAt: new Date().toISOString(),
+        // Additional order details for reference
+        orderDetails: {
+          orderNumber: `ORD-${Date.now()}`,
+          subtotal: state.total,
+          tax: tax,
+          shipping: shipping,
+          email: formData.email,
+          shippingAddress: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            address1: formData.address,
+            address2: formData.apartment,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            country: formData.country,
+            phone: formData.phone,
+          },
+          billingAddress: formData.sameAsBilling ? {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            address1: formData.address,
+            address2: formData.apartment,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            country: formData.country,
+            phone: formData.phone,
+          } : {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            address1: formData.address,
+            address2: formData.apartment,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            country: formData.country,
+            phone: formData.phone,
+          },
+        }
       }
 
+      console.log('Sending order data to API:', orderData)
+      console.log('PayPal Order ID being sent:', paypalOrderId)
+      console.log('Order data validation:', {
+        hasAmount: !!orderData.amount,
+        amountValue: orderData.amount,
+        hasCartItems: !!orderData.cartItems,
+        cartItemsCount: orderData.cartItems?.length || 0,
+        paypalOrderIdInResponse: paypalOrderId
+      })
+      
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -109,15 +190,21 @@ export default function CheckoutPage() {
         body: JSON.stringify(orderData),
       })
 
-      if (response.ok) {
+      const orderResponse = await response.json()
+      console.log('Order API response:', { status: response.status, response: orderResponse })
+      
+      if (response.ok && orderResponse.success) {
         // Clear cart
         await clearCart()
         
         // Redirect to success page
-        const order = await response.json()
-        router.push(`/checkout/success?orderId=${order.id}`)
+        router.push(`/user/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}`)
       } else {
-        throw new Error('Failed to create order')
+        console.error('Order creation failed:', orderResponse)
+        const errorMessage = orderResponse.error || orderResponse.message || 'Failed to create order'
+        console.error('Error details:', errorMessage)
+        toast.error(`Order failed: ${errorMessage}`)
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Order creation error:', error)
@@ -128,8 +215,17 @@ export default function CheckoutPage() {
   }
 
   const handlePayPalError = (error: any) => {
-    console.error('PayPal error:', error)
-    toast.error('Payment failed. Please try again.')
+    console.error('PayPal error details:', error)
+    console.error('PayPal error type:', typeof error)
+    console.error('PayPal error message:', error.message)
+    console.error('PayPal error code:', error.code)
+    setPaypalError(`Payment failed: ${error.message || 'Please try again.'}`)
+    toast.error(`Payment failed: ${error.message || 'Please try again.'}`)
+  }
+
+  const handlePayPalScriptError = (error: any) => {
+    console.error('PayPal script loading error:', error)
+    setPaypalError('Failed to load PayPal. Please check your internet connection and try again.')
   }
 
   if (state.items.length === 0) {
@@ -301,10 +397,14 @@ export default function CheckoutPage() {
                   <p className="text-gray-600 mb-6">
                     Secure payment powered by PayPal
                   </p>
+                  
+              
+
                   <PayPalScriptProvider
                     options={{
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb',
                       currency: 'USD',
+                      intent: 'capture',
                     }}
                   >
                     <PayPalButtons
@@ -323,6 +423,9 @@ export default function CheckoutPage() {
                       }}
                       onApprove={handlePayPalSuccess}
                       onError={handlePayPalError}
+                      onInit={(data, actions) => {
+                        setPaypalLoaded(true)
+                      }}
                       style={{
                         layout: 'vertical',
                         color: 'blue',
@@ -331,6 +434,187 @@ export default function CheckoutPage() {
                       }}
                     />
                   </PayPalScriptProvider>
+                  
+                  {/* Loading state */}
+                  {!paypalLoaded && !paypalError && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                        <span className="text-blue-600">Loading PayPal...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PayPal Error Display */}
+                  {paypalError && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-red-800">PayPal Error</h3>
+                          <div className="mt-2 text-sm text-red-700">
+                            <p>{paypalError}</p>
+                          </div>
+                          <div className="mt-4">
+                            <button
+                              onClick={() => {
+                                setPaypalError(null)
+                                setPaypalLoaded(false)
+                                window.location.reload()
+                              }}
+                              className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Fallback if PayPal doesn't load */}
+                  {!paypalLoaded && !paypalError && (
+                    <div className="mt-4 text-sm text-gray-500">
+                      <p className="text-amber-600">
+                        If PayPal buttons don't appear, please check your PayPal configuration and try refreshing the page.
+                      </p>
+                      <p className="mt-2">
+                        Make sure your PayPal Client ID is set in your environment variables.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Alternative Payment Method */}
+                  {paypalError && (
+                    <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">Alternative Payment Options</h3>
+                          <p className="text-sm text-gray-700 mb-4">
+                            PayPal is currently unavailable. Please choose one of the alternative payment methods below:
+                          </p>
+                          
+                          <div className="space-y-3">
+                            {/* Try PayPal Again Option */}
+                            <div className="p-4 bg-white rounded-lg border border-gray-200">
+                              <h4 className="font-medium text-gray-900 mb-2">Try PayPal Again</h4>
+                              <p className="text-sm text-gray-600 mb-3">
+                                Sometimes PayPal takes a moment to load. Try refreshing the page or clicking below.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setPaypalError(null)
+                                  setPaypalLoaded(false)
+                                  setPaypalTimeout(false)
+                                  window.location.reload()
+                                }}
+                                className="w-full px-4 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                              >
+                                Retry PayPal
+                              </button>
+                            </div>
+
+                            {/* Bank Transfer Option */}
+                            <div className="p-4 bg-white rounded-lg border border-gray-200">
+                              <h4 className="font-medium text-gray-900 mb-2">Bank Transfer</h4>
+                              <p className="text-sm text-gray-600 mb-3">
+                                Complete your order and we'll send you bank transfer details via email.
+                              </p>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    // Create order without PayPal
+                                    const orderData = {
+                                      paymentMethod: 'bank_transfer',
+                                      status: 'pending_payment',
+                                      amount: total,
+                                      currency: 'USD',
+                                      userId: session?.user?.id || parseInt(state.guestUserId || '0') || 0,
+                                      userType: session?.user?.id ? 'registered' : 'guest',
+                                      cartItems: state.items,
+                                      orderDetails: {
+                                        orderNumber: `ORD-${Date.now()}`,
+                                        subtotal: state.total,
+                                        tax: tax,
+                                        shipping: shipping,
+                                        email: formData.email,
+                                        shippingAddress: {
+                                          firstName: formData.firstName,
+                                          lastName: formData.lastName,
+                                          address1: formData.address,
+                                          address2: formData.apartment,
+                                          city: formData.city,
+                                          state: formData.state,
+                                          zip: formData.zip,
+                                          country: formData.country,
+                                          phone: formData.phone,
+                                        },
+                                      }
+                                    }
+
+                                    const response = await fetch('/api/orders', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify(orderData),
+                                    })
+
+                                    const orderResponse = await response.json()
+                                    
+                                    if (response.ok && orderResponse.success) {
+                                      await clearCart()
+                                      router.push(`/user/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}&paymentMethod=bank_transfer`)
+                                    } else {
+                                      toast.error('Failed to create order. Please try again.')
+                                    }
+                                  } catch (error) {
+                                    console.error('Order creation error:', error)
+                                    toast.error('Failed to process order. Please try again.')
+                                  }
+                                }}
+                                className="w-full px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              >
+                                Complete Order (Bank Transfer)
+                              </button>
+                            </div>
+
+                            {/* Manual Payment Option */}
+                            <div className="p-4 bg-white rounded-lg border border-gray-200">
+                              <h4 className="font-medium text-gray-900 mb-2">Contact for Payment</h4>
+                              <p className="text-sm text-gray-600 mb-3">
+                                Contact us directly to arrange payment and complete your order.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  const orderSummary = `Order Summary:
+Total: $${total.toFixed(2)}
+Items: ${state.items.length}
+Email: ${formData.email}
+
+Please contact us to complete this order.`
+                                  
+                                  const emailBody = encodeURIComponent(orderSummary)
+                                  const emailSubject = encodeURIComponent(`Order Inquiry - ${formData.email}`)
+                                  window.open(`mailto:support@yourstore.com?subject=${emailSubject}&body=${emailBody}`)
+                                }}
+                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                Contact Us for Payment
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

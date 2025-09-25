@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    const { productId, quantity = 1 } = await request.json()
+    const { productId, quantity = 1, guestUserId } = await request.json()
 
     if (!productId) {
       return NextResponse.json(
@@ -24,9 +24,15 @@ export async function POST(request: NextRequest) {
       // Convert string ID to integer for database
       userId = parseInt(session.user.id as string)
       console.log('Authenticated user - session.user.id:', session.user.id, 'converted to:', userId)
+    } else if (guestUserId) {
+      userType = 'guest'
+      // Use the provided guest user ID
+      userId = parseInt(guestUserId)
+      console.log('Guest user - using provided guestUserId:', guestUserId, 'converted to:', userId)
     } else {
-      // For guest users, we'll use a temporary integer ID
+      // For guest users without a provided ID, generate a temporary one
       userId = Math.floor(Math.random() * 1000000) + 100000
+      console.log('Guest user - generated new ID:', userId)
     }
     
     console.log('Final user type and ID:', { userType, userId })
