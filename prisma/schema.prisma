@@ -154,7 +154,7 @@ model Order {
   totalItems              Int      @map("total_items") @default(0)
   
   // PayPal response
-  paypalResponse          Json?    @map("paypal_response")
+  paypalResponse          String?  @map("paypal_response") @db.Text
   
   // Timestamps
   createdAt               DateTime @default(now())
@@ -168,4 +168,5 @@ model Order {
 enum Role {
   USER
   ADMIN
+  SUPER_ADMIN
 }

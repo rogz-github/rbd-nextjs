@@ -13,17 +13,12 @@ export const authOptions: NextAuthOptions = {
         rememberMe: { label: 'Remember Me', type: 'checkbox' }
       },
       async authorize(credentials) {
-        console.log('Auth authorize called with:', credentials?.usernameOrEmail)
-        
         if (!credentials?.usernameOrEmail || !credentials?.password) {
-          console.log('Missing credentials')
           return null
         }
 
         // Check if input is email or username
         const isEmail = credentials.usernameOrEmail.includes('@')
-        console.log('Is email:', isEmail)
-        
         // Use raw SQL to find user by email or username
         let users: any[]
         if (isEmail) {
@@ -40,11 +35,7 @@ export const authOptions: NextAuthOptions = {
           ` as any[]
         }
 
-        console.log('Found users:', users?.length || 0)
-        console.log('User data:', users?.[0] ? { id: users[0].id, email: users[0].email, username: users[0].username } : 'No user')
-
         if (!users || users.length === 0 || !users[0].password) {
-          console.log('No user found or no password')
           return null
         }
 
@@ -55,14 +46,9 @@ export const authOptions: NextAuthOptions = {
           user.password
         )
 
-        console.log('Password valid:', isPasswordValid)
-
         if (!isPasswordValid) {
-          console.log('Invalid password')
           return null
         }
-
-        console.log('Login successful, returning user data')
         return {
           id: user.id,
           email: user.email,
@@ -71,6 +57,8 @@ export const authOptions: NextAuthOptions = {
           lastName: user.lastName,
           username: user.username,
           role: user.role,
+          isAdmin: user.role === 'ADMIN' || user.role === 'SUPER_ADMIN',
+          isSuperAdmin: user.role === 'SUPER_ADMIN',
           rememberMe: Boolean(credentials.rememberMe),
         }
       }
@@ -88,6 +76,19 @@ export const authOptions: NextAuthOptions = {
         token.lastName = (user as any).lastName
         token.username = (user as any).username
         token.rememberMe = (user as any).rememberMe
+        token.isAdmin = (user as any).isAdmin
+        token.isSuperAdmin = (user as any).isSuperAdmin
+        
+        console.log('🔑 JWT callback - User data:', {
+          role: (user as any).role,
+          isAdmin: (user as any).isAdmin,
+          isSuperAdmin: (user as any).isSuperAdmin
+        })
+        console.log('🔑 JWT callback - Token updated:', {
+          role: token.role,
+          isAdmin: token.isAdmin,
+          isSuperAdmin: token.isSuperAdmin
+        })
       }
       
       // Set token expiration based on remember me
@@ -106,6 +107,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).firstName = token.firstName as string
         (session.user as any).lastName = token.lastName as string
         (session.user as any).username = token.username as string
+        (session.user as any).isAdmin = token.isAdmin as boolean
+        (session.user as any).isSuperAdmin = token.isSuperAdmin as boolean
+        
       }
       return session
     }

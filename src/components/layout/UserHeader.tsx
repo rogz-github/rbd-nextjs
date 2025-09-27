@@ -369,8 +369,8 @@ export function UserHeader() {
       </div>
 
       {/* Main Header */}
-      <div className="bg-white border-b">
-        <div className="container">
+      <div className="bg-white border-b relative">
+        <div className="container relative">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link href="/" className="flex items-center">
@@ -419,7 +419,7 @@ export function UserHeader() {
                   
                   {/* Dropdown Menu */}
                   {isAccountDropdownOpen && (
-                    <div className="absolute right-0 top-full w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <div className="absolute right-0 top-full w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" style={{ zIndex: 9999 }}>
                       {session ? (
                         <>
                           <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">

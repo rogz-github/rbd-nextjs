@@ -10,7 +10,7 @@ interface Order {
   coId: number
   coOrderId: string
   coStatus: string
-  coTotalPrice: number
+  coTotalPrice: number | string
   coUserId: number
   coType: string
   orderItems: string
@@ -182,7 +182,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex items-center">
                           <DollarSign className="w-4 h-4 mr-1" />
-                          ${order.coTotalPrice.toFixed(2)}
+                          ${Number(order.coTotalPrice).toFixed(2)}
                         </div>
                         <div className="flex items-center">
                           <Package className="w-4 h-4 mr-1" />

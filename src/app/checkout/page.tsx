@@ -32,18 +32,20 @@ export default function CheckoutPage() {
   const [paypalTimeout, setPaypalTimeout] = useState(false)
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [formData, setFormData] = useState<CheckoutFormData>({
-    email: session?.user?.email || '',
-    firstName: '',
-    lastName: '',
-    address: '',
-    apartment: '',
-    city: '',
-    state: '',
-    zip: '',
+    email: session?.user?.email || 'john.doe@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+    address: '123 Main Street',
+    apartment: 'Apt 4B',
+    city: 'New York',
+    state: 'NY',
+    zip: '10001',
     country: 'US',
-    phone: '',
+    phone: '+1 (555) 123-4567',
     sameAsBilling: true,
   })
+  const [formErrors, setFormErrors] = useState<Partial<CheckoutFormData>>({})
+  const [isFormValid, setIsFormValid] = useState(false)
 
   const shipping = state.total >= 50 ? 0 : 9.99
   const tax = state.total * 0.08
@@ -87,20 +89,60 @@ export default function CheckoutPage() {
     }
   }, [state.items.length, router, paymentCompleted, isProcessing])
 
+  // Validate form whenever formData changes
+  useEffect(() => {
+    validateForm()
+  }, [formData])
+
+  const validateForm = () => {
+    const errors: Partial<CheckoutFormData> = {}
+    
+    // Required fields validation
+    if (!formData.email.trim()) errors.email = 'Email is required'
+    if (!formData.firstName.trim()) errors.firstName = 'First name is required'
+    if (!formData.lastName.trim()) errors.lastName = 'Last name is required'
+    if (!formData.address.trim()) errors.address = 'Address is required'
+    if (!formData.city.trim()) errors.city = 'City is required'
+    if (!formData.state.trim()) errors.state = 'State is required'
+    if (!formData.zip.trim()) errors.zip = 'ZIP code is required'
+    if (!formData.phone.trim()) errors.phone = 'Phone number is required'
+    
+    // Email format validation
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    
+    // Phone format validation (basic)
+    if (formData.phone && !/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
+      errors.phone = 'Please enter a valid phone number'
+    }
+    
+    setFormErrors(errors)
+    const isValid = Object.keys(errors).length === 0
+    setIsFormValid(isValid)
+    return isValid
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }))
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[name as keyof CheckoutFormData]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: undefined
+      }))
+    }
   }
 
   const handlePayPalSuccess = async (details: any) => {
     setIsProcessing(true)
     
     try {
-    
-      
       // Validate cart has items
       if (!state.items || state.items.length === 0) {
         throw new Error('Cart is empty')
@@ -121,7 +163,14 @@ export default function CheckoutPage() {
         userId: session?.user?.id || parseInt(state.guestUserId || '0') || 0,
         userType: session?.user?.id ? 'registered' : 'guest',
         cartItems: state.items,
-        paypalResponse: details,
+        paypalResponse: {
+          id: paypalOrderId,
+          status: details.status || 'COMPLETED',
+          payer: details.payer || null,
+          purchase_units: details.purchase_units || null,
+          create_time: details.create_time || new Date().toISOString(),
+          update_time: details.update_time || new Date().toISOString()
+        },
         captureId: paypalOrderId,
         capturedAt: new Date().toISOString(),
         // Additional order details for reference
@@ -179,21 +228,32 @@ export default function CheckoutPage() {
       const orderResponse = await response.json()
       
       if (response.ok && orderResponse.success) {
+        console.log('✅ Order created successfully:', orderResponse)
+        
         // Set payment completed flag to prevent cart redirect
         setPaymentCompleted(true)
         
         // Clear cart
         await clearCart()
         
+        // Show success message
+        toast.success('Payment successful! Redirecting to confirmation page...')
+        
         // Redirect to success page
-        router.push(`/user/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}`)
+        const successUrl = `/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}`
+        console.log('🔄 Redirecting to success page:', successUrl)
+        
+        // Use replace instead of push to prevent back button issues
+        router.replace(successUrl)
       } else {
         const errorMessage = orderResponse.error || orderResponse.message || 'Failed to create order'
+        console.error('❌ Order creation failed:', errorMessage)
         toast.error(`Order failed: ${errorMessage}`)
         throw new Error(errorMessage)
       }
     } catch (error) {
-      toast.error('Failed to process order. Please try again.')
+      console.error('❌ Order processing error:', error)
+      toast.error(`Failed to process order: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setIsProcessing(false)
     }
@@ -237,9 +297,12 @@ export default function CheckoutPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="input w-full"
+                    className={`input w-full ${formErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
+                  {formErrors.email && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                  )}
                 </div>
               </div>
 
@@ -260,9 +323,12 @@ export default function CheckoutPage() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      className={`input w-full ${formErrors.firstName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                       required
                     />
+                    {formErrors.firstName && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.firstName}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -274,9 +340,12 @@ export default function CheckoutPage() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      className={`input w-full ${formErrors.lastName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                       required
                     />
+                    {formErrors.lastName && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.lastName}</p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4">
@@ -289,9 +358,12 @@ export default function CheckoutPage() {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="input w-full"
+                    className={`input w-full ${formErrors.address ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
+                  {formErrors.address && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.address}</p>
+                  )}
                 </div>
                 <div className="mt-4">
                   <label htmlFor="apartment" className="block text-sm font-medium text-gray-700 mb-2">
@@ -317,9 +389,12 @@ export default function CheckoutPage() {
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      className={`input w-full ${formErrors.city ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                       required
                     />
+                    {formErrors.city && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.city}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
@@ -331,9 +406,12 @@ export default function CheckoutPage() {
                       name="state"
                       value={formData.state}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      className={`input w-full ${formErrors.state ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                       required
                     />
+                    {formErrors.state && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.state}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-2">
@@ -345,9 +423,12 @@ export default function CheckoutPage() {
                       name="zip"
                       value={formData.zip}
                       onChange={handleInputChange}
-                      className="input w-full"
+                      className={`input w-full ${formErrors.zip ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                       required
                     />
+                    {formErrors.zip && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.zip}</p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4">
@@ -360,9 +441,12 @@ export default function CheckoutPage() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="input w-full"
+                    className={`input w-full ${formErrors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
+                  {formErrors.phone && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.phone}</p>
+                  )}
                 </div>
               </div>
 
@@ -380,6 +464,24 @@ export default function CheckoutPage() {
                   
               
 
+                  {!isFormValid && (
+                    <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-yellow-800">Complete Required Information</h3>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p>Please fill in all required shipping address fields before proceeding with payment.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <PayPalScriptProvider
                     options={{
                       clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb',
@@ -389,6 +491,10 @@ export default function CheckoutPage() {
                   >
                     <PayPalButtons
                       createOrder={(data, actions) => {
+                        if (!isFormValid) {
+                          toast.error('Please complete all required fields before proceeding with payment.')
+                          throw new Error('Form validation failed')
+                        }
                         return actions.order.create({
                           intent: 'CAPTURE',
                           purchase_units: [
@@ -412,6 +518,7 @@ export default function CheckoutPage() {
                         shape: 'rect',
                         label: 'paypal',
                       }}
+                      disabled={!isFormValid}
                     />
                   </PayPalScriptProvider>
                   
@@ -511,6 +618,11 @@ export default function CheckoutPage() {
                               </p>
                               <button
                                 onClick={async () => {
+                                  if (!isFormValid) {
+                                    toast.error('Please complete all required fields before proceeding with payment.')
+                                    return
+                                  }
+                                  
                                   try {
                                     // Create order without PayPal
                                     const orderData = {
@@ -552,7 +664,7 @@ export default function CheckoutPage() {
                                     if (response.ok && orderResponse.success) {
                                       setPaymentCompleted(true)
                                       await clearCart()
-                                      router.push(`/user/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}&paymentMethod=bank_transfer`)
+                                      router.push(`/checkout/success?orderId=${orderResponse.id}&orderNumber=${orderResponse.orderNumber}&paymentMethod=bank_transfer`)
                                     } else {
                                       toast.error('Failed to create order. Please try again.')
                                     }

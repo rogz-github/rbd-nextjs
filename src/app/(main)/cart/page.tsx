@@ -14,12 +14,34 @@ export default function CartPage() {
   const { data: session } = useSession()
   const [showClearModal, setShowClearModal] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [showRemoveModal, setShowRemoveModal] = useState(false)
+  const [itemToRemove, setItemToRemove] = useState<string | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   const handleQuantityChange = async (cartItemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      await removeFromCart(cartItemId)
+      setItemToRemove(cartItemId)
+      setShowRemoveModal(true)
     } else {
       await updateQuantity(cartItemId, newQuantity)
+    }
+  }
+
+  const handleRemoveItem = (cartItemId: string) => {
+    setItemToRemove(cartItemId)
+    setShowRemoveModal(true)
+  }
+
+  const confirmRemoveItem = async () => {
+    if (!itemToRemove) return
+    
+    setIsRemoving(true)
+    try {
+      await removeFromCart(itemToRemove)
+      setShowRemoveModal(false)
+      setItemToRemove(null)
+    } finally {
+      setIsRemoving(false)
     }
   }
 
@@ -47,15 +69,24 @@ export default function CartPage() {
 
   if (state.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container py-16">
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Enhanced background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
+        <div className="absolute inset-0 bg-pattern-dots opacity-30"></div>
+        
+        <div className="relative container py-16">
           <div className="text-center">
-            <ShoppingBag className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
-            <p className="text-gray-600 mb-8">Looks like you haven't added any items to your cart yet.</p>
+            <div className="relative inline-block mb-8">
+              <div className="absolute inset-0 bg-gradient-primary rounded-full blur-xl opacity-20 scale-110"></div>
+              <div className="relative bg-white rounded-full p-8 shadow-2xl">
+                <ShoppingBag className="w-24 h-24 text-blue-600 mx-auto" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
+            <p className="text-xl text-gray-600 mb-8 max-w-md mx-auto">Looks like you haven't added any items to your cart yet. Start shopping to discover amazing products!</p>
             <Link 
               href="/products" 
-              className="inline-flex items-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+              className="inline-flex items-center bg-gradient-primary hover:shadow-xl text-white font-semibold py-4 px-8 rounded-xl shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
             >
               <ShoppingBag className="w-5 h-5 mr-2" />
               Continue Shopping
@@ -67,8 +98,12 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container py-8">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Enhanced background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"></div>
+      <div className="absolute inset-0 bg-pattern-grid opacity-20"></div>
+      
+      <div className="relative container py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -159,7 +194,7 @@ export default function CartPage() {
 
                         {/* Remove Button */}
                         <button
-                          onClick={() => removeFromCart(item.cart_id)}
+                          onClick={() => handleRemoveItem(item.cart_id)}
                           className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
                           disabled={state.updating}
                         >
@@ -220,8 +255,8 @@ export default function CartPage() {
               {!state.updating && (
                 <>
                   <Link 
-                    href="/user/checkout" 
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-center block mb-4"
+                    href="/checkout" 
+                    className="w-full bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-center block mb-4"
                   >
                     <div className="flex items-center justify-center">
                       <ShoppingBag className="w-5 h-5 mr-2" />
@@ -252,6 +287,22 @@ export default function CartPage() {
         cancelText="Keep Items"
         type="warning"
         loading={isClearing}
+      />
+
+      {/* Remove Item Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showRemoveModal}
+        onClose={() => {
+          setShowRemoveModal(false)
+          setItemToRemove(null)
+        }}
+        onConfirm={confirmRemoveItem}
+        title="Remove Item from Cart"
+        message="Are you sure you want to remove this item from your cart? This action cannot be undone."
+        confirmText="Remove Item"
+        cancelText="Keep Item"
+        type="warning"
+        loading={isRemoving}
       />
     </div>
   )

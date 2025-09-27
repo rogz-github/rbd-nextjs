@@ -157,8 +157,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, state.guestUserId])
 
-  // Load cart on mount and when user changes
+  // Load cart on mount and when user changes, but not on success pages
   useEffect(() => {
+    // Don't load cart if we're on a success page
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/success')) {
+      return
+    }
     loadCart()
   }, [loadCart])
 
@@ -267,13 +271,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       
-      // Remove all items one by one
+      // Remove all items one by one without reloading cart after each removal
       for (const item of state.items) {
-        await removeFromCart(item.cart_id)
+        try {
+          // Build URL with guest user ID if not authenticated
+          let url = `/api/cart/remove?cartItemId=${item.cart_id}`
+          if (!session && state.guestUserId) {
+            url += `&guestUserId=${state.guestUserId}`
+          }
+          
+          const response = await fetch(url, {
+            method: 'DELETE',
+          })
+          
+          const data = await response.json()
+          
+          if (!data.success) {
+            console.error('Failed to remove item:', data.message)
+          }
+        } catch (error) {
+          console.error('Error removing item:', error)
+        }
       }
       
       dispatch({ type: 'CLEAR_CART_SUCCESS', payload: { message: 'Cart cleared successfully' } })
@@ -283,7 +305,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       toast.error('Failed to clear cart')
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }
+  }, [session, state.guestUserId, state.items])
 
   return (
     <CartContext.Provider value={{ 

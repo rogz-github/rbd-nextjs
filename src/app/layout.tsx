@@ -5,10 +5,16 @@ import { Providers } from '@/components/providers'
 import { Toaster } from 'react-hot-toast'
 import { UserHeader } from '@/components/layout/UserHeader'
 import { Footer } from '@/components/layout/footer'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : "https://rbd-ecommerce.com"
+  ),
   title: {
     default: 'RBD E-Commerce - Premium Online Shopping',
     template: '%s | RBD E-Commerce'
@@ -53,14 +59,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <UserHeader />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
-          <Toaster position="bottom-right" />
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </Providers>
       </body>
     </html>
