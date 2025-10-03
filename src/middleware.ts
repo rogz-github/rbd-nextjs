@@ -13,8 +13,17 @@ export default withAuth(
         return NextResponse.next()
       }
 
-      // Check if user is admin
-      if (!token || !token.isAdmin) {
+      // Check if user is admin (both property and role-based)
+      const isAdmin = !!token?.isAdmin
+      const isAdminByRole = token?.role === 'ADMIN' || token?.role === 'SUPER_ADMIN'
+      
+      if (!token || (!isAdmin && !isAdminByRole)) {
+        console.log('🔒 Middleware redirecting - not admin:', {
+          hasToken: !!token,
+          isAdmin,
+          isAdminByRole,
+          role: token?.role
+        })
         return NextResponse.redirect(new URL('/~admin', req.url))
       }
     }
@@ -37,7 +46,8 @@ export default withAuth(
           hasToken: !!token,
           isAdmin: token?.isAdmin,
           role: token?.role,
-          username: token?.username
+          username: token?.username,
+          tokenKeys: token ? Object.keys(token) : []
         })
         
         // Allow access to admin login page
@@ -49,6 +59,14 @@ export default withAuth(
         if (pathname.startsWith('/~admin')) {
           const isAdmin = !!token?.isAdmin
           const isAdminByRole = token?.role === 'ADMIN' || token?.role === 'SUPER_ADMIN'
+          
+          console.log('🔒 Middleware admin check:', {
+            pathname,
+            isAdmin,
+            isAdminByRole,
+            shouldAllow: isAdmin || isAdminByRole,
+            tokenRole: token?.role
+          })
           
           // Use role-based check as fallback
           return isAdmin || isAdminByRole

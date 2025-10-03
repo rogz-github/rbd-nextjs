@@ -1,0 +1,23 @@
+{
+  "name": "RBD E-Commerce",
+  "short_name": "RBD Store",
+  "description": "Premium online shopping experience with fast delivery and secure checkout",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logo/ready-logo.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["shopping", "ecommerce", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
+}

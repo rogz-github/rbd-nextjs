@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signOut } from 'next-auth/react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { 
@@ -21,12 +21,54 @@ interface AdminHeaderProps {
 export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { theme, toggleTheme } = useTheme()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure client-side only rendering to prevent hydration issues
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/~admin' })
   }
 
-
+  // Show loading state until component is mounted to prevent hydration issues
+  if (!mounted) {
+    return (
+      <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4 flex-1">
+            <div className="lg:hidden p-2 rounded-lg">
+              <Menu className="w-5 h-5 text-gray-600" />
+            </div>
+            <div className="relative hidden sm:block">
+              <div className="w-64 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 lg:space-x-4">
+            <div className="hidden sm:block p-2 rounded-lg">
+              <Sun className="w-5 h-5 text-gray-600" />
+            </div>
+            <div className="p-2 rounded-lg">
+              <Bell className="w-5 h-5 text-gray-600" />
+            </div>
+            <div className="hidden sm:block p-2 rounded-lg">
+              <Settings className="w-5 h-5 text-gray-600" />
+            </div>
+            <div className="flex items-center space-x-2 p-2 rounded-lg">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-white">JD</span>
+              </div>
+              <div className="hidden sm:block text-left">
+                <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-12 h-3 bg-gray-200 rounded animate-pulse mt-1"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">

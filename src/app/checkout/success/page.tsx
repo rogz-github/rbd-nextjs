@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle, Mail } from 'lucide-react'
+import { CheckCircle, Mail, MapPin } from 'lucide-react'
 
 interface Order {
   coId: number
@@ -12,8 +12,36 @@ interface Order {
   coTotalPrice: number | string
   coUserId: number
   coType: string
-  orderItems: string
-  shippingAddress: string
+  coSubtotal?: number
+  coTax?: number
+  coShipping?: number
+  orderItems: any[]
+  shippingAddress: {
+    firstName: string
+    lastName: string
+    address?: string
+    address1?: string
+    address2?: string
+    city: string
+    state: string
+    zipCode?: string
+    zip?: string
+    country: string
+    phone?: string
+  }
+  billingAddress: {
+    firstName: string
+    lastName: string
+    address?: string
+    address1?: string
+    address2?: string
+    city: string
+    state: string
+    zipCode?: string
+    zip?: string
+    country: string
+    phone?: string
+  }
   paypalResponse: any
   coCreated: string
 }
@@ -21,6 +49,7 @@ interface Order {
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
+  const orderNumber = searchParams.get('orderNumber')
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -35,13 +64,13 @@ export default function CheckoutSuccessPage() {
   const fetchOrder = async (id: string) => {
     try {
       console.log('Fetching order with ID:', id)
-      const response = await fetch(`/api/orders/${id}`)
+      const response = await fetch(`/api/orders/user/${id}`)
       console.log('Order API response status:', response.status)
       
       if (response.ok) {
         const orderData = await response.json()
         console.log('Fetched order data:', orderData)
-        setOrder(orderData)
+        setOrder(orderData.order)
       } else {
         console.error('Failed to fetch order, status:', response.status)
         const errorData = await response.json()
@@ -125,7 +154,7 @@ export default function CheckoutSuccessPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="text-center sm:text-left">
                   <p className="text-sm text-gray-600 mb-1">Order Number</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-900">{order.coOrderId}</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-900">{orderNumber || order.coOrderId}</p>
                 </div>
                 <div className="text-center sm:text-left">
                   <p className="text-sm text-gray-600 mb-1">Order Date</p>
@@ -144,6 +173,89 @@ export default function CheckoutSuccessPage() {
               </div>
             </div>
 
+            {/* Shipping Address */}
+            {order.shippingAddress && (
+              <div className="bg-glass rounded-xl shadow-xl p-6 sm:p-8 border border-white/20 mb-6 sm:mb-8">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+                  Shipping Address
+                </h2>
+                <div className="text-center sm:text-left">
+                  <p className="text-sm sm:text-base font-medium text-gray-900 mb-2">
+                    {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+                  </p>
+                  <p className="text-sm sm:text-base text-gray-700 mb-1">
+                    {order.shippingAddress.address || order.shippingAddress.address1}
+                  </p>
+                  {order.shippingAddress.address2 && (
+                    <p className="text-sm sm:text-base text-gray-700 mb-1">
+                      {order.shippingAddress.address2}
+                    </p>
+                  )}
+                  <p className="text-sm sm:text-base text-gray-700 mb-1">
+                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode || order.shippingAddress.zip}
+                  </p>
+                  <p className="text-sm sm:text-base text-gray-700">
+                    {order.shippingAddress.country}
+                  </p>
+                  {order.shippingAddress.phone && (
+                    <p className="text-sm sm:text-base text-gray-700 mt-2">
+                      Phone: {order.shippingAddress.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Billing Address */}
+            {order.billingAddress && (() => {
+              // Check if billing address is the same as shipping address
+              const isSameAddress = 
+                order.billingAddress.firstName === order.shippingAddress.firstName &&
+                order.billingAddress.lastName === order.shippingAddress.lastName &&
+                (order.billingAddress.address || order.billingAddress.address1) === (order.shippingAddress.address || order.shippingAddress.address1) &&
+                order.billingAddress.city === order.shippingAddress.city &&
+                order.billingAddress.state === order.shippingAddress.state &&
+                (order.billingAddress.zipCode || order.billingAddress.zip) === (order.shippingAddress.zipCode || order.shippingAddress.zip) &&
+                order.billingAddress.country === order.shippingAddress.country;
+
+              if (!isSameAddress) {
+                return (
+                  <div className="bg-glass rounded-xl shadow-xl p-6 sm:p-8 border border-white/20 mb-6 sm:mb-8">
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center justify-center">
+                      <Mail className="w-5 h-5 sm:w-6 sm:h-6 mr-2" />
+                      Billing Address
+                    </h2>
+                    <div className="text-center sm:text-left">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 mb-2">
+                        {order.billingAddress.firstName} {order.billingAddress.lastName}
+                      </p>
+                      <p className="text-sm sm:text-base text-gray-700 mb-1">
+                        {order.billingAddress.address || order.billingAddress.address1}
+                      </p>
+                      {order.billingAddress.address2 && (
+                        <p className="text-sm sm:text-base text-gray-700 mb-1">
+                          {order.billingAddress.address2}
+                        </p>
+                      )}
+                      <p className="text-sm sm:text-base text-gray-700 mb-1">
+                        {order.billingAddress.city}, {order.billingAddress.state} {order.billingAddress.zipCode || order.billingAddress.zip}
+                      </p>
+                      <p className="text-sm sm:text-base text-gray-700">
+                        {order.billingAddress.country}
+                      </p>
+                      {order.billingAddress.phone && (
+                        <p className="text-sm sm:text-base text-gray-700 mt-2">
+                          Phone: {order.billingAddress.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             {/* Order Summary */}
             <div className="bg-glass rounded-xl shadow-xl p-6 sm:p-8 border border-white/20">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 text-center">Order Summary</h2>
@@ -151,15 +263,17 @@ export default function CheckoutSuccessPage() {
               <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="text-gray-900 font-medium">${(Number(order.coTotalPrice) * 0.92).toFixed(2)}</span>
+                  <span className="text-gray-900 font-medium">${(order.coSubtotal || (Number(order.coTotalPrice) * 0.92)).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="text-gray-900 font-medium">Free</span>
+                  <span className="text-gray-900 font-medium">
+                    {order.coShipping === 0 ? 'Free' : `$${(order.coShipping || 0).toFixed(2)}`}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-gray-600">Tax</span>
-                  <span className="text-gray-900 font-medium">${(Number(order.coTotalPrice) * 0.08).toFixed(2)}</span>
+                  <span className="text-gray-900 font-medium">${(order.coTax || (Number(order.coTotalPrice) * 0.08)).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg sm:text-xl font-bold border-t border-gray-200 pt-3 sm:pt-4">
                   <span className="text-gray-900">Total</span>

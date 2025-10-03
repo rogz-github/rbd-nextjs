@@ -33,7 +33,11 @@ export function FeaturedProducts() {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/products?limit=8&status=active')
+        const response = await fetch('/api/products?limit=8&status=active', {
+          headers: {
+            'Cache-Control': 'max-age=300' // Cache for 5 minutes
+          }
+        })
         const data = await response.json()
         
         if (data.success) {

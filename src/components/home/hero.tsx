@@ -1,63 +1,460 @@
-import Link from 'next/link'
-import { ArrowRight, Star, Truck, Shield, RotateCcw } from 'lucide-react'
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
+import { Star, Truck, Shield, RotateCcw, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+
+interface Banner {
+  id: number
+  title: string
+  description?: string
+  imageUrl: string
+  videoUrl?: string
+  link?: string
+  type?: 'IMAGE' | 'VIDEO'
+  position: number
+  isActive: boolean
+  startDate?: string
+  endDate?: string
+}
+
+interface Slide {
+  id: number
+  type: 'image' | 'video'
+  src: string
+  poster?: string
+  alt: string
+  link?: string
+}
 
 export function Hero() {
-  return (
-    <section className="relative bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-      <div className="container py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Discover Amazing Products
-            </h1>
-            <p className="text-xl text-primary-100 mb-8">
-              Shop the latest trends and find everything you need in one place. 
-              Fast shipping, secure checkout, and excellent customer service.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/products" className="btn btn-lg bg-white text-primary-600 hover:bg-gray-100">
-                Shop Now
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-              <Link href="/categories" className="btn btn-lg btn-outline border-white text-white hover:bg-white hover:text-primary-600">
-                Browse Categories
-              </Link>
-            </div>
-            
-            {/* Trust Indicators */}
-            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="flex items-center space-x-2">
-                <Truck className="w-5 h-5 text-primary-200" />
-                <span className="text-sm text-primary-100">Free Shipping</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="w-5 h-5 text-primary-200" />
-                <span className="text-sm text-primary-100">Secure Payment</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RotateCcw className="w-5 h-5 text-primary-200" />
-                <span className="text-sm text-primary-100">Easy Returns</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-primary-200" />
-                <span className="text-sm text-primary-100">5-Star Rating</span>
-              </div>
-            </div>
-          </div>
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [slides, setSlides] = useState<Slide[]>([])
+  const [loading, setLoading] = useState(true)
+  const [preloadedSlides, setPreloadedSlides] = useState<Set<number>>(new Set())
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const videoRefs = useRef<{ [key: number]: HTMLVideoElement | null }>({})
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
+
+  // Preload slide content
+  const preloadSlide = (slideIndex: number) => {
+    if (preloadedSlides.has(slideIndex) || slideIndex < 0 || slideIndex >= slides.length) return
+    
+    const slide = slides[slideIndex]
+    if (!slide) return
+
+    if (slide.type === 'image') {
+      // Preload image
+      const img = new window.Image()
+      img.src = slide.src
+      img.onload = () => {
+        setPreloadedSlides(prev => new Set(Array.from(prev).concat(slideIndex)))
+      }
+    } else if (slide.type === 'video') {
+      // Preload video
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.src = slide.src
+      video.onloadedmetadata = () => {
+        setPreloadedSlides(prev => new Set(Array.from(prev).concat(slideIndex)))
+      }
+    }
+  }
+
+  // Preload adjacent slides
+  useEffect(() => {
+    if (slides.length === 0) return
+
+    // Preload current slide
+    preloadSlide(currentSlide)
+    
+    // Preload next slide
+    const nextSlide = (currentSlide + 1) % slides.length
+    preloadSlide(nextSlide)
+    
+    // Preload previous slide
+    const prevSlide = (currentSlide - 1 + slides.length) % slides.length
+    preloadSlide(prevSlide)
+  }, [currentSlide, slides, preloadedSlides])
+
+  // Fetch banners from database with optimized caching
+  const fetchBanners = async (isPolling = false) => {
+    try {
+      const response = await fetch('/api/banners', {
+        headers: {
+          'Cache-Control': isPolling ? 'no-cache' : 'max-age=300',
+          'If-Modified-Since': lastUpdateTime ? new Date(lastUpdateTime).toUTCString() : ''
+        }
+      })
+      
+      if (response.status === 304) {
+        // No changes, skip update
+        return
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Filter for active banners and sort by position
+        const activeBanners = data.data
+          .filter((banner: Banner) => banner.isActive)
+          .sort((a: Banner, b: Banner) => a.position - b.position)
+        
+        const bannerSlides: Slide[] = activeBanners.map((banner: Banner) => ({
+          id: banner.id,
+          type: (banner.type || 'IMAGE').toLowerCase() as 'image' | 'video',
+          src: banner.type === 'VIDEO' ? banner.videoUrl || banner.imageUrl : banner.imageUrl,
+          poster: banner.type === 'VIDEO' ? banner.imageUrl : undefined,
+          alt: banner.title,
+          link: banner.link
+        }))
+        
+        // Only update if slides have actually changed
+        const slidesChanged = JSON.stringify(slides) !== JSON.stringify(bannerSlides)
+        if (slidesChanged) {
+          setSlides(bannerSlides)
+          setPreloadedSlides(new Set()) // Reset preloaded slides
+          setLastUpdateTime(Date.now())
           
-          <div className="relative">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
-              <div className="bg-white rounded-xl p-6 text-gray-900">
-                <div className="w-full h-64 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-                  <span className="text-gray-500">Hero Product Image</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Featured Product</h3>
-                <p className="text-gray-600 mb-4">Amazing product description that highlights key features and benefits.</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary-600">$99.99</span>
-                  <button className="btn btn-primary btn-sm">Add to Cart</button>
-                </div>
-              </div>
+          if (isPolling) {
+            console.log('🔄 Slider updated with new banners')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching banners:', error)
+      if (!isPolling) {
+        // Only use fallback on initial load, not during polling
+        setSlides([
+          {
+            id: 1,
+            type: "image",
+            src: "/images/banners/1759127189680_vpu8xw8u2fi.webp",
+            alt: "Featured Product"
+          },
+          {
+            id: 2,
+            type: "image",
+            src: "/images/banners/1759127416020_b3cildy7le5.webp",
+            alt: "Special Offer"
+          },
+          {
+            id: 3,
+            type: "image", 
+            src: "/images/banners/1759127804740_iniy76p5zmm.webp",
+            alt: "New Collection"
+          },
+          {
+            id: 4,
+            type: "image",
+            src: "/images/banners/1759132444907_ad6gj7it48s.jpg",
+            alt: "Limited Time Deal"
+          }
+        ])
+      }
+    } finally {
+      if (!isPolling) {
+        setLoading(false)
+      }
+    }
+  }
+
+  // Initial fetch
+  useEffect(() => {
+    fetchBanners()
+  }, [])
+
+  // Polling for updates every 30 seconds (fallback)
+  useEffect(() => {
+    pollingIntervalRef.current = setInterval(() => {
+      fetchBanners(true)
+    }, 30000) // Poll every 30 seconds
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [slides, lastUpdateTime])
+
+  // Server-Sent Events for real-time updates - Temporarily disabled
+  useEffect(() => {
+    // Only connect to SSE if not in admin mode
+    // if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin')) {
+    //   const eventSource = new EventSource('/api/banners/events')
+    //   eventSourceRef.current = eventSource
+
+    //   eventSource.onmessage = (event) => {
+    //     try {
+    //       const data = JSON.parse(event.data)
+          
+    //       if (data.type === 'banner-updated') {
+    //         console.log('🔄 Real-time update received, refreshing banners...')
+    //         fetchBanners(true)
+    //       }
+    //     } catch (error) {
+    //       console.error('Error parsing SSE message:', error)
+    //     }
+    //   }
+
+    //   eventSource.onerror = (error) => {
+    //     console.error('SSE connection error:', error)
+    //     // Fallback to polling if SSE fails
+    //     if (pollingIntervalRef.current) {
+    //       clearInterval(pollingIntervalRef.current)
+    //     }
+    //     pollingIntervalRef.current = setInterval(() => {
+    //       fetchBanners(true)
+    //     }, 10000) // More frequent polling as fallback
+    //   }
+
+    //   return () => {
+    //     eventSource.close()
+    //     eventSourceRef.current = null
+    //   }
+    // }
+  }, [])
+
+  // Auto-play functionality
+  useEffect(() => {
+    if (!isAutoPlaying || slides.length === 0) return
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [isAutoPlaying, slides.length])
+
+  // Touch handlers for mobile swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+
+    if (isLeftSwipe) {
+      nextSlide()
+    } else if (isRightSwipe) {
+      prevSlide()
+    }
+  }
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+    setIsAutoPlaying(false)
+  }
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+    setIsAutoPlaying(false)
+  }
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+    setIsAutoPlaying(false)
+  }
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchBanners(true)
+    setIsRefreshing(false)
+  }
+
+  const currentSlideData = slides[currentSlide]
+
+  // Show loading state
+  if (loading) {
+    return (
+      <section className="relative overflow-hidden">
+        <div className="relative w-full h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] xl:h-[500px] bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+            <div className="text-gray-600 font-medium">Loading banners...</div>
+            <div className="text-gray-400 text-sm mt-2">Optimizing for your device</div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  // Show message if no banners
+  if (slides.length === 0) {
+    return (
+      <section className="relative overflow-hidden">
+        <div className="relative w-full h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] xl:h-[500px] bg-gray-100 flex items-center justify-center">
+          <div className="text-gray-500">No banners available</div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="relative overflow-hidden">
+      {/* Slider Container - 100% width with auto height */}
+      <div 
+        className="relative w-full h-auto overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Media Content - Natural height */}
+        <div className="relative w-full">
+          {currentSlideData.type === 'image' ? (
+            <Image
+              src={currentSlideData.src}
+              alt={currentSlideData.alt}
+              width={1920}
+              height={1080}
+              className="w-full h-auto object-cover object-center transition-all duration-1000 ease-in-out image-high-quality"
+              priority={currentSlide === 0}
+              sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, (max-width: 1024px) 100vw, 100vw"
+              quality={85}
+              placeholder="blur"
+              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+            />
+          ) : (
+            <video
+              ref={(el) => {
+                if (el) videoRefs.current[currentSlide] = el
+              }}
+              src={currentSlideData.src}
+              className="w-full h-auto object-cover object-center transition-all duration-1000 ease-in-out image-high-quality"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload={preloadedSlides.has(currentSlide) ? "auto" : "metadata"}
+              poster={currentSlideData.poster}
+              onLoadedData={(e) => {
+                // Force high quality rendering
+                const video = e.target as HTMLVideoElement;
+                video.style.imageRendering = '-webkit-optimize-contrast';
+                video.style.imageRendering = 'crisp-edges';
+              }}
+              onError={(e) => {
+                console.error('Video failed to load:', currentSlideData.src);
+              }}
+            />
+          )}
+        </div>
+
+        {/* Preload hidden slides for smooth transitions */}
+        <div className="hidden">
+          {slides.map((slide, index) => {
+            if (index === currentSlide) return null;
+            
+            return slide.type === 'image' ? (
+              <Image
+                key={`preload-${slide.id}`}
+                src={slide.src}
+                alt={slide.alt}
+                width={1920}
+                height={1080}
+                priority={index === (currentSlide + 1) % slides.length || index === (currentSlide - 1 + slides.length) % slides.length}
+                sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, (max-width: 1024px) 100vw, 100vw"
+                quality={60}
+              />
+            ) : (
+              <video
+                key={`preload-${slide.id}`}
+                src={slide.src}
+                preload="metadata"
+                muted
+                playsInline
+                poster={slide.poster}
+              />
+            );
+          })}
+        </div>
+
+        {/* Navigation Arrows - Pink circular design with glow effect */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-pink-500 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-300 z-10 touch-manipulation shadow-lg hover:shadow-xl"
+          style={{
+            boxShadow: '0 0 20px rgba(236, 72, 153, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)'
+          }}
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="w-6 h-6 text-white" />
+        </button>
+        
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-pink-500 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-300 z-10 touch-manipulation shadow-lg hover:shadow-xl"
+          style={{
+            boxShadow: '0 0 20px rgba(236, 72, 153, 0.4), 0 0 40px rgba(236, 72, 153, 0.2)'
+          }}
+          aria-label="Next slide"
+        >
+          <ChevronRight className="w-6 h-6 text-white" />
+        </button>
+
+        {/* Refresh Button - Top right corner */}
+        <button
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          className="absolute top-4 right-4 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-300 z-10 touch-manipulation shadow-lg hover:shadow-xl disabled:opacity-50"
+          aria-label="Refresh banners"
+        >
+          <RefreshCw className={`w-5 h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+
+        {/* Slide Indicators - Pink theme with glow effect */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3 z-10">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all duration-300 touch-manipulation ${
+                index === currentSlide 
+                  ? 'bg-pink-500 scale-110 shadow-lg' 
+                  : 'bg-white/60 hover:bg-pink-300 hover:scale-105'
+              }`}
+              style={index === currentSlide ? {
+                boxShadow: '0 0 15px rgba(236, 72, 153, 0.5), 0 0 30px rgba(236, 72, 153, 0.3)'
+              } : {}}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Trust Indicators */}
+      <div className="bg-white/95 backdrop-blur-sm py-4">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex items-center space-x-2 justify-center">
+              <Truck className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-700">Free Shipping</span>
+            </div>
+            <div className="flex items-center space-x-2 justify-center">
+              <Shield className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-700">Secure Payment</span>
+            </div>
+            <div className="flex items-center space-x-2 justify-center">
+              <RotateCcw className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-700">Easy Returns</span>
+            </div>
+            <div className="flex items-center space-x-2 justify-center">
+              <Star className="w-4 h-4 text-gray-600" />
+              <span className="text-sm text-gray-700">5-Star Rating</span>
             </div>
           </div>
         </div>

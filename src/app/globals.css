@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* High quality image rendering */
+@layer utilities {
+  .image-high-quality {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: high-quality;
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

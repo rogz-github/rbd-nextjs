@@ -68,8 +68,12 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days default
   },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days default
+  },
   callbacks: {
     async jwt({ token, user, account }) {
+      
       if (user) {
         token.role = (user as any).role
         token.firstName = (user as any).firstName
@@ -79,12 +83,9 @@ export const authOptions: NextAuthOptions = {
         token.isAdmin = (user as any).isAdmin
         token.isSuperAdmin = (user as any).isSuperAdmin
         
-        console.log('🔑 JWT callback - User data:', {
-          role: (user as any).role,
-          isAdmin: (user as any).isAdmin,
-          isSuperAdmin: (user as any).isSuperAdmin
-        })
-        console.log('🔑 JWT callback - Token updated:', {
+
+      } else {
+        console.log('🔑 JWT callback - No user data, token:', {
           role: token.role,
           isAdmin: token.isAdmin,
           isSuperAdmin: token.isSuperAdmin
@@ -110,6 +111,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).isAdmin = token.isAdmin as boolean
         (session.user as any).isSuperAdmin = token.isSuperAdmin as boolean
         
+  
       }
       return session
     }

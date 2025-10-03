@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { useCart } from '@/context/cart-context'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -175,7 +176,7 @@ export default function CheckoutPage() {
         capturedAt: new Date().toISOString(),
         // Additional order details for reference
         orderDetails: {
-          orderNumber: `ORD-${Date.now()}`,
+          orderNumber: `ORDER-${Date.now()}`,
           subtotal: state.total,
           tax: tax,
           shipping: shipping,
@@ -634,7 +635,7 @@ export default function CheckoutPage() {
                                       userType: session?.user?.id ? 'registered' : 'guest',
                                       cartItems: state.items,
                                       orderDetails: {
-                                        orderNumber: `ORD-${Date.now()}`,
+                                        orderNumber: `ORDER-${Date.now()}`,
                                         subtotal: state.total,
                                         tax: tax,
                                         shipping: shipping,
@@ -720,11 +721,13 @@ Please contact us to complete this order.`
                 <div className="space-y-4 mb-6">
                   {state.items.map((item) => (
                     <div key={item.cart_id} className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden">
-                        <img
+                      <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden relative">
+                        <Image
                           src={item.main_image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}
                           alt={item.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="48px"
                         />
                       </div>
                       <div className="flex-1 min-w-0">

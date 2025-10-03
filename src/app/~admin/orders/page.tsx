@@ -11,7 +11,10 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  RefreshCw,
+  Truck,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -100,24 +103,38 @@ export default function AdminOrders() {
   }, [searchTerm, statusFilter])
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'COMPLETED':
+      case 'DELIVERED':
         return <CheckCircle className="w-4 h-4 text-green-600" />
       case 'CANCELLED':
         return <XCircle className="w-4 h-4 text-red-600" />
+      case 'PROCESSING':
+        return <RefreshCw className="w-4 h-4 text-blue-600" />
+      case 'SHIPPED':
+        return <Truck className="w-4 h-4 text-purple-600" />
+      case 'REFUNDED':
+        return <AlertCircle className="w-4 h-4 text-gray-600" />
       default:
         return <Clock className="w-4 h-4 text-yellow-600" />
     }
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'COMPLETED':
+      case 'DELIVERED':
         return 'bg-green-100 text-green-800'
       case 'CANCELLED':
         return 'bg-red-100 text-red-800'
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800'
+      case 'PROCESSING':
+        return 'bg-blue-100 text-blue-800'
+      case 'SHIPPED':
+        return 'bg-purple-100 text-purple-800'
+      case 'REFUNDED':
+        return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -223,11 +240,11 @@ export default function AdminOrders() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                        {Array.isArray(order.items) ? order.items.length : 0} item{(Array.isArray(order.items) ? order.items.length : 0) !== 1 ? 's' : ''}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {order.items[0]?.product.name}
-                        {order.items.length > 1 && ` +${order.items.length - 1} more`}
+                        {Array.isArray(order.items) && order.items.length > 0 ? order.items[0]?.product.name : 'No items'}
+                        {Array.isArray(order.items) && order.items.length > 1 && ` +${order.items.length - 1} more`}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -243,9 +260,13 @@ export default function AdminOrders() {
                       {new Date(order.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900">
+                      <Link
+                        href={`/~admin/orders/${order.id}`}
+                        className="inline-flex items-center text-blue-600 hover:text-blue-900 transition-colors"
+                        title="View Order Details"
+                      >
                         <Eye className="w-4 h-4" />
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}

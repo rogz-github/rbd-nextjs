@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get all unique user IDs from orders (only for current page)
-    const userIds = Array.from(new Set(orders.map(order => order.coUserId)))
+    const userIds = Array.from(new Set(orders.map((order: any) => order.coUserId)))
     
     // Fetch user data for current page orders only
     const users = await prisma.user.findMany({
@@ -70,17 +70,18 @@ export async function GET(request: NextRequest) {
     })
 
     // Create a user lookup map
-    const userMap = new Map(users.map(user => [user.id, user]))
+    const userMap = new Map(users.map((user: any) => [user.id, user]))
 
     // Format orders with user data and decrypt sensitive information
-    const formattedOrders = orders.map(order => {
+    const formattedOrders = orders.map((order: any) => {
       const decryptedOrder = decryptOrderData(order)
       const user = userMap.get(order.coUserId)
       
       // Parse order items
       let orderItems = []
       try {
-        orderItems = JSON.parse(decryptedOrder.orderItems || '[]')
+        const parsedItems = JSON.parse(decryptedOrder.orderItems || '[]')
+        orderItems = Array.isArray(parsedItems) ? parsedItems : []
       } catch (error) {
         console.error('Error parsing order items:', error)
         orderItems = []
@@ -90,11 +91,11 @@ export async function GET(request: NextRequest) {
         id: order.coId.toString(),
         orderNumber: decryptedOrder.coOrderId,
         total: parseFloat(decryptedOrder.coTotalPrice.toString()),
-        status: decryptedOrder.coStatus,
+        status: order.coStatus, // Use original order coStatus, not decrypted
         createdAt: decryptedOrder.coCreated,
         user: user ? {
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email
+          name: `${(user as any).firstName} ${(user as any).lastName}`,
+          email: (user as any).email
         } : {
           name: 'Guest User',
           email: 'N/A'
@@ -103,8 +104,8 @@ export async function GET(request: NextRequest) {
           product: {
             name: item.name || item.productName || 'Unknown Product'
           },
-          quantity: item.quantity || item.qty || 1,
-          price: parseFloat((item.price || item.unitPrice || 0).toString())
+          quantity: item.prod_quantity || item.quantity || item.qty || 1,
+          price: parseFloat((item.sale_price || item.discounted_price || item.itemTotal || item.price || item.unitPrice || 0).toString())
         }))
       }
     })

@@ -20,13 +20,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Force light theme for now
     setTheme('light')
     // Clear any saved dark theme preference
-    localStorage.setItem('theme', 'light')
-    // Ensure dark class is removed from document
-    document.documentElement.classList.remove('dark')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', 'light')
+      // Ensure dark class is removed from document
+      document.documentElement.classList.remove('dark')
+    }
   }, [])
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && typeof window !== 'undefined') {
       localStorage.setItem('theme', theme)
       if (theme === 'dark') {
         document.documentElement.classList.add('dark')

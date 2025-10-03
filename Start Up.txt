@@ -27,5 +27,3 @@ PRISMA INSTALLATION THEN REN
  npx prisma studio => to run the prisma database
 
 
- TO RUN sql comman must go this directory 
- -  cd "C:\Program Files\PostgreSQL\17\bin"

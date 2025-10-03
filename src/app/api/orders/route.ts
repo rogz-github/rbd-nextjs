@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     
     // Map the new order data to the actual database schema
     const mappedData: any = {
-      coOrderId: `ORDER-${Date.now()}`,
+      coOrderId: orderData.orderDetails?.orderNumber || `ORDER-${Date.now()}`,
       coUserId: parseInt(orderData.userId) || 0,
       coType: orderData.userType || 'guest',
       coNotes: `PayPal Order - ${Date.now()}`,
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       id: order.coId,
-      orderNumber: orderData.orderDetails?.orderNumber || `ORD-${order.coId}`,
+      orderNumber: order.coOrderId,
       message: 'Order created successfully'
     }, { status: 201 })
   } catch (error) {

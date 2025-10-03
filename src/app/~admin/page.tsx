@@ -118,12 +118,13 @@ export default function AdminLogin() {
         console.log('Admin login successful, redirecting...')
         
         toast.success('Welcome back!', {
-          duration: 1500,
+          duration: 1000,
           icon: '🔐',
         })
         
-        // Redirect immediately to dashboard
-        window.location.href = '/~admin/dashboard'
+        // Use a more reliable approach - redirect immediately and let the dashboard handle session checking
+        console.log('✅ Login successful, redirecting to dashboard')
+        router.push('/~admin/dashboard')
       } else {
         console.log('Unexpected admin login result:', result)
         toast.error('Admin login failed. Please try again.')

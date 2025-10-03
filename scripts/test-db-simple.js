@@ -32,7 +32,7 @@ async function testDatabase() {
         shippingAddress: '{}',
         billingAddress: '{}',
         totalItems: 0,
-        paypalResponse: { test: 'data' },
+        paypalResponse: JSON.stringify({ test: 'data' }),
         coStyle: 'new'
       }
     })

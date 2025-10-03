@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Package, Search, Filter, Calendar, DollarSign } from 'lucide-react'
+import { Package, Search, Filter, Calendar, DollarSign, MapPin } from 'lucide-react'
 
 interface Order {
   coId: number
@@ -13,9 +13,33 @@ interface Order {
   coTotalPrice: number | string
   coUserId: number
   coType: string
-  orderItems: string
-  shippingAddress: string
-  billingAddress: string
+  orderItems: any[]
+  shippingAddress: {
+    firstName: string
+    lastName: string
+    address?: string
+    address1?: string
+    address2?: string
+    city: string
+    state: string
+    zipCode?: string
+    zip?: string
+    country: string
+    phone?: string
+  }
+  billingAddress: {
+    firstName: string
+    lastName: string
+    address?: string
+    address1?: string
+    address2?: string
+    city: string
+    state: string
+    zipCode?: string
+    zip?: string
+    country: string
+    phone?: string
+  }
   totalItems: number
   paypalResponse: any
   coCreated: string
@@ -38,9 +62,25 @@ export default function OrdersPage() {
       return
     }
 
-    // For now, we'll show empty state since we don't have orders API set up
-    setLoading(false)
+    // Fetch user orders
+    fetchOrders()
   }, [session, status, router])
+
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch('/api/orders/user')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setOrders(data.orders || [])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (status === 'loading' || loading) {
     return (
@@ -189,6 +229,22 @@ export default function OrdersPage() {
                           {order.totalItems} items
                         </div>
                       </div>
+                      
+                      {/* Shipping Address Preview */}
+                      {order.shippingAddress && (
+                        <div className="mt-3 flex items-start text-sm text-gray-600">
+                          <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-medium">
+                              {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+                            </span>
+                            <br />
+                            <span>
+                              {order.shippingAddress.address || order.shippingAddress.address1}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode || order.shippingAddress.zip}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 sm:mt-0 sm:ml-6">

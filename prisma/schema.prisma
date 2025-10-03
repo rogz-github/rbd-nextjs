@@ -165,8 +165,43 @@ model Order {
   @@index([coStatus])
 }
 
+model Banner {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  imageUrl    String?  @map("image_url")
+  videoUrl    String?  @map("video_url")
+  link        String?  // Link to redirect when banner is clicked
+  type        BannerType @default(IMAGE)
+  position    Int      @default(0) // Order/position of banner
+  isActive    Boolean  @default(true) @map("is_active")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([position])
+  @@index([type])
+}
+
+model BannerBottomImages {
+  id        Int      @id @default(autoincrement())
+  bgColor   String?  @map("bg_color")
+  linkUrl   String?  @map("link_url")
+  image     String?
+  created   DateTime @default(now())
+
+  @@map("banner_bottom_images")
+}
+
 enum Role {
   USER
   ADMIN
   SUPER_ADMIN
+}
+
+enum BannerType {
+  IMAGE
+  VIDEO
 }

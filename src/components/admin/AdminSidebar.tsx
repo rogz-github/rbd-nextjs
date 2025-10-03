@@ -27,7 +27,12 @@ import {
   Plus,
   List,
   Percent,
-  Tag
+  Tag,
+  Monitor,
+  Image,
+  Star,
+  Grid3X3,
+  Eye
 } from 'lucide-react'
 import RbdLogo from '@/components/RbdLogo'
 
@@ -65,6 +70,39 @@ const productItems = [
   }
 ]
 
+const pageItems = [
+  {
+    title: 'Slider Banner',
+    href: '/~admin/slider-banners',
+    icon: Image
+  },
+  {
+    title: 'Bottom Banner',
+    href: '/~admin/bottom-banner',
+    icon: Grid3X3
+  },
+  {
+    title: '3 Images',
+    href: '/~admin/pages/home/three-images',
+    icon: Grid3X3
+  },
+  {
+    title: 'Best Deal Available',
+    href: '/~admin/pages/home/best-deal',
+    icon: Star
+  },
+  {
+    title: 'Displayed Products',
+    href: '/~admin/pages/home/displayed-products',
+    icon: Package
+  },
+  {
+    title: 'Displayed Images',
+    href: '/~admin/pages/home/displayed-images',
+    icon: Eye
+  }
+]
+
 interface AdminSidebarProps {
   isMobileOpen: boolean
   onMobileClose: () => void
@@ -74,10 +112,17 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isCheckoutsOpen, setIsCheckoutsOpen] = useState(true)
   const [isProductsOpen, setIsProductsOpen] = useState(false)
+  const [isPagesOpen, setIsPagesOpen] = useState(true)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const { data: session } = useSession()
+
+  // Ensure client-side only rendering to prevent hydration issues
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch pending orders count
   const fetchOrdersCount = async () => {
@@ -137,6 +182,26 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
   //   }
   // }, [pathname, onMobileClose, isMobileOpen])
 
+  // Show loading state until component is mounted to prevent hydration issues
+  if (!mounted) {
+    return (
+      <div className="fixed lg:static inset-y-0 left-0 z-50 w-64 h-full flex flex-col bg-gray-900 shadow-lg">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div className="flex items-center space-x-2">
+            <RbdLogo className="h-8 w-auto" priority />
+          </div>
+        </div>
+        <div className="p-4 space-y-2 flex-1">
+          <div className="animate-pulse">
+            <div className="h-10 bg-gray-700 rounded-lg mb-4"></div>
+            <div className="h-10 bg-gray-700 rounded-lg mb-4"></div>
+            <div className="h-10 bg-gray-700 rounded-lg mb-4"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -159,9 +224,9 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div className="flex items-center space-x-2">
             {isCollapsed ? (
-              <RbdLogo className="h-8 w-8" />
+              <RbdLogo className="h-8 w-8" priority />
             ) : (
-              <RbdLogo className="h-8 w-auto" />
+              <RbdLogo className="h-8 w-auto" priority />
             )}
           </div>
           <div className="flex items-center space-x-2">
@@ -297,6 +362,59 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
               {isProductsOpen && (
                 <div className="ml-8 space-y-1">
                   {productItems.map((item) => {
+                    const Icon = item.icon
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+                          isActive
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MANAGE PAGES Section */}
+        {!isCollapsed && (
+          <div className="mt-6">
+            <div className="px-3 py-2">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                MANAGE PAGES
+              </h3>
+            </div>
+            
+            {/* Pages Dropdown */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setIsPagesOpen(!isPagesOpen)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group bg-gray-800 text-white hover:bg-gray-700"
+              >
+                <div className="flex items-center space-x-3">
+                  <Monitor className="w-5 h-5 text-gray-300" />
+                  <span className="font-medium">Home Page</span>
+                </div>
+                {isPagesOpen ? (
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+              
+              {/* Dropdown Items */}
+              {isPagesOpen && (
+                <div className="ml-8 space-y-1">
+                  {pageItems.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href
                     return (
