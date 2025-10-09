@@ -68,6 +68,7 @@ model Product {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   id                Int      @id @default(autoincrement())
+  cartItems         Cart[]
 
   @@index([spuNo])
   @@index([itemNo])
@@ -102,6 +103,7 @@ model Cart {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   prodId       Int      @map("prod_id")
+  product      Product  @relation(fields: [prodId], references: [id])
 
   @@index([userId])
   @@index([prodId])
