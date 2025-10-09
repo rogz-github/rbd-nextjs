@@ -256,7 +256,9 @@ export default function SliderBannersPage() {
   // Fetch banners
   const fetchBanners = async () => {
     try {
-      const response = await fetch('/api/banners?admin=true')
+      const response = await fetch('/api/banners?admin=true', {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         // Sort banners: active first by position, then inactive by position
@@ -414,6 +416,7 @@ export default function SliderBannersPage() {
       // Update positions in the database (only active banners)
       try {
         const response = await fetch('/api/banners/reorder', {
+          credentials: 'include',
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

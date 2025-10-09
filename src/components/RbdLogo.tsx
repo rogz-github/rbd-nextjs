@@ -25,7 +25,6 @@ export default function RbdLogo({
         height={isBanner ? 80 : 60}
         priority={priority}
         className="object-contain"
-        style={{ width: 'auto', height: 'auto' }}
         quality={100}
       />
     </div>

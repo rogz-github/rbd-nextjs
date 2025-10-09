@@ -64,13 +64,17 @@ export default function AdminDashboard() {
       setLoading(true)
       
       // Fetch orders data
-      const ordersResponse = await fetch('/api/admin/orders?limit=5&page=1')
+      const ordersResponse = await fetch('/api/admin/orders?limit=5&page=1', {
+        credentials: 'include'
+      })
       const ordersData = await ordersResponse.json()
       
       // Fetch products count
       let productsCount = 0
       try {
-        const productsResponse = await fetch('/api/admin/products/count')
+        const productsResponse = await fetch('/api/admin/products/count', {
+          credentials: 'include'
+        })
         if (productsResponse.ok) {
           const productsData = await productsResponse.json()
           productsCount = productsData.count || 0
@@ -82,7 +86,9 @@ export default function AdminDashboard() {
       // Fetch users count
       let usersCount = 0
       try {
-        const usersResponse = await fetch('/api/admin/users/count')
+        const usersResponse = await fetch('/api/admin/users/count', {
+          credentials: 'include'
+        })
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
           usersCount = usersData.count || 0

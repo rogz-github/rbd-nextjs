@@ -2,120 +2,107 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
-interface PromoBanner {
+interface BannerBottomImage {
   id: number
-  src: string
-  alt: string
-  title: string
-  subtitle: string
-  discount: string
-  link?: string
+  bgColor?: string
+  linkUrl?: string
+  image?: string
+  status: string
+  created: string
 }
 
 export function ImageColumns() {
-  // Sample data matching the design in the image
-  const banners: PromoBanner[] = [
-    {
-      id: 1,
-      src: "/images/banners/1759137516143_kwzwqmbpphi.webp",
-      alt: "Industrial Power Tools Deals",
-      title: "Industrial",
-      subtitle: "Power Tools",
-      discount: "40% OFF",
-      link: "/products?category=tools"
-    },
-    {
-      id: 2,
-      src: "/images/banners/1759320681770_9bx047nlpej.jpg",
-      alt: "Musical Instruments Deals",
-      title: "Musical",
-      subtitle: "Instruments",
-      discount: "35% OFF",
-      link: "/products?category=instruments"
-    }
-  ]
+  const [banners, setBanners] = useState<BannerBottomImage[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const PromoBanner = ({ banner }: { banner: PromoBanner }) => (
-    <div className="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-      <div className="relative aspect-[4/3] overflow-hidden">
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const response = await fetch(`/api/admin/banners/bottom-images?t=${Date.now()}`)
+        if (response.ok) {
+          const data = await response.json()
+          // Get only 2 random banners from the active banners
+          const activeBanners = data || []
+          const shuffled = [...activeBanners].sort(() => 0.5 - Math.random())
+          const selectedBanners = shuffled.slice(0, 2)
+          setBanners(selectedBanners)
+        } else {
+          console.error('Failed to fetch banners:', response.status, response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching bottom banner images:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBanners()
+
+    // Set up auto-refresh every 60 seconds for random banner rotation
+    const interval = setInterval(fetchBanners, 60000)
+
+    // Listen for custom refresh events from admin panel
+    const handleRefresh = () => {
+      console.log('Banner update event received, refreshing banners...')
+      fetchBanners()
+    }
+
+    window.addEventListener('bannerUpdated', handleRefresh)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('bannerUpdated', handleRefresh)
+    }
+  }, [])
+
+  const PromoBanner = ({ banner }: { banner: BannerBottomImage }) => (
+    <Link href={banner.linkUrl || '#'} className="block">
+      <div className="relative w-full overflow-hidden rounded-lg">
         <Image
-          src={banner.src}
-          alt={banner.alt}
-          fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          src={banner.image || '/images/placeholder-product.jpg'}
+          alt={`Banner ${banner.id}`}
+          width={800}
+          height={600}
+          className="w-full h-auto object-cover"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+          quality={100}
         />
-        
-        {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-black/30" />
-        
-        {/* Wavy abstract shapes at the bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 overflow-hidden">
-          <svg
-            className="absolute bottom-0 left-0 w-full h-full"
-            viewBox="0 0 1200 120"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,60 C150,20 300,100 450,60 C600,20 750,100 900,60 C1050,20 1200,100 1200,100 L1200,120 L0,120 Z"
-              fill="rgba(20, 184, 166, 0.8)"
-            />
-            <path
-              d="M0,80 C200,40 400,120 600,80 C800,40 1000,120 1200,80 L1200,120 L0,120 Z"
-              fill="rgba(6, 182, 212, 0.6)"
-            />
-            <path
-              d="M0,100 C250,60 500,140 750,100 C1000,60 1200,140 1200,140 L1200,120 L0,120 Z"
-              fill="rgba(14, 165, 233, 0.4)"
-            />
-          </svg>
-        </div>
-        
-        {/* Content */}
-        <div className="absolute inset-0 flex flex-col justify-between p-6 text-white">
-          {/* Title in upper left */}
-          <div className="flex flex-col">
-            <h3 className="text-3xl font-bold leading-tight opacity-90">
-              {banner.title}
-            </h3>
-            <h4 className="text-3xl font-bold leading-tight opacity-90">
-              {banner.subtitle}
-            </h4>
-            <span className="text-2xl font-bold opacity-90">
-              Deals
-            </span>
-          </div>
-          
-          {/* Discount in upper right */}
-          <div className="flex justify-end">
-            <div className="text-right">
-              <div className="text-4xl font-bold text-white" style={{
-                textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                WebkitTextStroke: '2px #14b8a6'
-              }}>
-                {banner.discount.split(' ')[0]}
-              </div>
-              <div className="text-lg font-bold text-white" style={{
-                textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                WebkitTextStroke: '1px #14b8a6'
-              }}>
-                {banner.discount.split(' ')[1]}
-              </div>
+      </div>
+    </Link>
+  )
+
+  if (loading) {
+    return (
+      <section className="py-12 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex gap-4 md:gap-6 lg:gap-8">
+            <div className="flex-1">
+              <div className="w-full h-64 bg-gray-200 rounded-lg animate-pulse"></div>
+            </div>
+            <div className="flex-1">
+              <div className="w-full h-64 bg-gray-200 rounded-lg animate-pulse"></div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  )
+      </section>
+    )
+  }
+
+  if (banners.length === 0) {
+    return null
+  }
 
   return (
     <section className="py-12 bg-gray-50">
       <div className="container mx-auto px-4">
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+        {/* Display exactly 2 random banners */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
           {banners.map((banner) => (
-            <PromoBanner key={banner.id} banner={banner} />
+            <div key={banner.id} className="flex-1">
+              <PromoBanner banner={banner} />
+            </div>
           ))}
         </div>
       </div>

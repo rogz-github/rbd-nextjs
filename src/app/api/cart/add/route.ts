@@ -37,20 +37,21 @@ export async function POST(request: NextRequest) {
     
     console.log('Final user type and ID:', { userType, userId })
 
-    // Check if product exists using raw SQL
+    // Check if product exists using Prisma ORM
     console.log('Checking product exists for ID:', productId)
-    const products = await prisma.$queryRaw`
-      SELECT id, name, "sale_price" FROM "Product" 
-      WHERE id = ${productId}
-      LIMIT 1
-    ` as any[]
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) },
+      select: { id: true, name: true, salePrice: true }
+    })
 
-    console.log('Product query result:', products)
+    console.log('Product query result:', product)
 
-    if (!products || products.length === 0) {
+    if (!product) {
       console.log('Product not found, trying to find any product...')
       // Try to find any product to see if the table exists
-      const anyProduct = await prisma.$queryRaw`SELECT id, name FROM "Product" LIMIT 1` as any[]
+      const anyProduct = await prisma.product.findFirst({
+        select: { id: true, name: true }
+      })
       console.log('Any product found:', anyProduct)
       
       return NextResponse.json(
@@ -59,38 +60,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if item already exists in cart for this user
-    const existingCartItem = await prisma.$queryRaw`
-      SELECT * FROM "Cart" 
-      WHERE "user_type" = ${userType} 
-      AND "user_id" = ${userId} 
-      AND "prod_id" = ${productId}
-      AND status = 'active'
-      LIMIT 1
-    ` as any[]
+    // Check if item already exists in cart for this user using Prisma ORM
+    const existingCartItem = await prisma.cart.findFirst({
+      where: {
+        userType: userType,
+        userId: parseInt(userId.toString()),
+        prodId: parseInt(productId),
+        status: 'active'
+      }
+    })
 
-    if (existingCartItem && existingCartItem.length > 0) {
+    if (existingCartItem) {
       // Update existing item quantity
-      await prisma.$executeRaw`
-        UPDATE "Cart" 
-        SET "prod_quantity" = "prod_quantity" + ${quantity},
-            "updatedAt" = NOW()
-        WHERE "user_type" = ${userType} 
-        AND "user_id" = ${userId} 
-        AND "prod_id" = ${productId}
-        AND status = 'active'
-      `
+      await prisma.cart.update({
+        where: { id: existingCartItem.id },
+        data: {
+          prodQuantity: existingCartItem.prodQuantity + quantity,
+          updatedAt: new Date()
+        }
+      })
     } else {
-      // Add new item to cart
-      await prisma.$executeRaw`
-        INSERT INTO "Cart" (
-          id, "user_type", "user_id", "prod_id", "prod_quantity", 
-          status, "createdAt", "updatedAt"
-        ) VALUES (
-          gen_random_uuid(), ${userType}, ${userId}, ${productId}, ${quantity}, 
-          'active', NOW(), NOW()
-        )
-      `
+      // Add new item to cart using Prisma ORM (auto-increment ID)
+      await prisma.cart.create({
+        data: {
+          userType: userType,
+          userId: parseInt(userId.toString()),
+          prodId: parseInt(productId),
+          prodQuantity: quantity,
+          status: 'active'
+        }
+      })
     }
 
     return NextResponse.json({

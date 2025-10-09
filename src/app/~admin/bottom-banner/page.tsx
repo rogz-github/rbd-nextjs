@@ -28,6 +28,7 @@ interface BottomBannerImage {
   bgColor?: string
   linkUrl?: string
   image?: string
+  status: string
   created: string
 }
 
@@ -57,10 +58,12 @@ export default function BottomBannerPage() {
     }
   }, [session, status, router])
 
-  // Fetch banner images
+  // Fetch banner images (all statuses for admin)
   const fetchBannerImages = async () => {
     try {
-      const response = await fetch('/api/bottom-banners')
+      const response = await fetch('/api/bottom-banners', {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setBannerImages(data.data || [])
@@ -93,6 +96,8 @@ export default function BottomBannerPage() {
         setBannerImages(bannerImages.filter(img => img.id !== id))
         setDeleteConfirm(null)
         showToast('Banner image deleted successfully!', 'success')
+        // Dispatch custom event to refresh homepage
+        window.dispatchEvent(new CustomEvent('bannerUpdated'))
       } else {
         const result = await response.json()
         showToast(`Failed to delete banner image: ${result.error}`, 'error')
@@ -106,11 +111,43 @@ export default function BottomBannerPage() {
   const handleImageAdded = () => {
     fetchBannerImages()
     showToast('Banner image created successfully!', 'success')
+    // Dispatch custom event to refresh homepage
+    window.dispatchEvent(new CustomEvent('bannerUpdated'))
   }
 
   const handleImageUpdated = () => {
     fetchBannerImages()
     showToast('Banner image updated successfully!', 'success')
+    // Dispatch custom event to refresh homepage
+    window.dispatchEvent(new CustomEvent('bannerUpdated'))
+  }
+
+  const handleStatusToggle = async (id: number, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+      const response = await fetch(`/api/bottom-banners/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        setBannerImages(bannerImages.map(img => 
+          img.id === id ? { ...img, status: newStatus } : img
+        ))
+        showToast(`Banner ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`, 'success')
+        // Dispatch custom event to refresh homepage
+        window.dispatchEvent(new CustomEvent('bannerUpdated'))
+      } else {
+        const result = await response.json()
+        showToast(`Failed to update status: ${result.error}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      showToast('Error updating status. Please try again.', 'error')
+    }
   }
 
   if (status === 'loading' || loading) {
@@ -132,21 +169,21 @@ export default function BottomBannerPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Bottom Banner Images</h1>
-            <p className="mt-2 text-gray-600">Manage your bottom banner images (3 images max)</p>
+            <p className="mt-2 text-gray-600">Manage your bottom banner images (10 images max)</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            disabled={bannerImages.length >= 3}
+            disabled={bannerImages.length >= 10}
             className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-              bannerImages.length >= 3
+              bannerImages.length >= 10
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
             }`}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Image
-            {bannerImages.length >= 3 && (
-              <span className="ml-2 text-xs">(Max 3)</span>
+            {bannerImages.length >= 10 && (
+              <span className="ml-2 text-xs">(Max 10)</span>
             )}
           </button>
         </div>
@@ -163,7 +200,7 @@ export default function BottomBannerPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Images</dt>
-                  <dd className="text-lg font-medium text-gray-900">{bannerImages.length}/3</dd>
+                  <dd className="text-lg font-medium text-gray-900">{bannerImages.length}/10</dd>
                 </dl>
               </div>
             </div>
@@ -192,13 +229,13 @@ export default function BottomBannerPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Palette className="h-6 w-6 text-purple-400" />
+                <CheckCircle className="h-6 w-6 text-green-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">With Background</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Active</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {bannerImages.filter(img => img.bgColor).length}
+                    {bannerImages.filter(img => img.status === 'active').length}
                   </dd>
                 </dl>
               </div>
@@ -263,8 +300,32 @@ export default function BottomBannerPage() {
                   
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">ID: {image.id}</span>
                       <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-900">ID: {image.id}</span>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          image.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {image.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleStatusToggle(image.id, image.status)}
+                          className={`${
+                            image.status === 'active' 
+                              ? 'text-orange-600 hover:text-orange-900' 
+                              : 'text-green-600 hover:text-green-900'
+                          }`}
+                          title={`${image.status === 'active' ? 'Deactivate' : 'Activate'} banner`}
+                        >
+                          {image.status === 'active' ? (
+                            <XCircle className="w-4 h-4" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           onClick={() => setEditingImage(image)}
                           className="text-blue-600 hover:text-blue-900"

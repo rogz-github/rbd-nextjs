@@ -1,0 +1,401 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { writeFile, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
+import { join } from 'path'
+
+// Parse CSV content
+function parseCSV(csvContent: string): string[][] {
+  const lines = csvContent.split('\n')
+  const records: string[][] = []
+  
+  for (const line of lines) {
+    if (line.trim() === '') continue
+    
+    const record: string[] = []
+    let current = ''
+    let inQuotes = false
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      
+      if (char === '"') {
+        inQuotes = !inQuotes
+      } else if (char === ',' && !inQuotes) {
+        record.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+    
+    record.push(current.trim())
+    records.push(record)
+  }
+  
+  return records
+}
+
+// Transform CSV row to product data
+function transformCSVRow(row: string[], rowIndex: number) {
+  try {
+    // Expected CSV format based on the modal description
+    const [
+      spuNo,
+      itemNo,
+      url,
+      category1,
+      name,
+      supplier,
+      brand,
+      variant1,
+      variant2,
+      variant3,
+      variant4,
+      sku,
+      mapPrice,
+      dropshippingPrice,
+      inventory,
+      shippingWeight,
+      shippingLength,
+      shippingWidth,
+      shippingHeight,
+      shippingCost,
+      inventoryLocation,
+      inventoryStatus,
+      inventoryNotes,
+      inventoryReserved,
+      inventoryAvailable,
+      salePrice,
+      promotionType,
+      promotionValue,
+      promotionEndDate,
+      mainImage,
+      image2,
+      image3,
+      image4,
+      image5,
+      description,
+      upc,
+      asin,
+      additionalField1,
+      additionalField2,
+      additionalField3,
+      additionalField4
+    ] = row
+
+    // Debug: Log the actual values being read
+    console.log(`🔍 Row ${rowIndex + 1} CSV values:`, {
+      spuNo,
+      itemNo,
+      name,
+      promotionEndDate,
+      mainImage,
+      totalColumns: row.length,
+      allColumns: row.slice(0, 10) // First 10 columns for debugging
+    })
+
+    // Helper function to detect if a value is an image URL
+    const isImageUrl = (value: string) => {
+      if (!value || value.trim() === '') return false
+      return value.includes('http') && (value.includes('.jpg') || value.includes('.jpeg') || value.includes('.png') || value.includes('.webp') || value.includes('image.'))
+    }
+
+    // Helper function to detect if a value is a date
+    const isDate = (value: string) => {
+      if (!value || value.trim() === '') return false
+      // Check for common date formats
+      return /^\d{4}-\d{2}-\d{2}/.test(value) || /^\d{2}\/\d{2}\/\d{4}/.test(value) || /^\d{2}-\d{2}-\d{4}/.test(value)
+    }
+
+    // Parse numeric values
+    const parsePrice = (priceStr: string) => {
+      if (!priceStr || priceStr.trim() === '') return null
+      const parsed = parseFloat(priceStr.replace(/[^0-9.-]/g, ''))
+      return isNaN(parsed) ? null : parsed
+    }
+
+    const parseInventory = (inventoryStr: string) => {
+      if (!inventoryStr || inventoryStr.trim() === '') return '0'
+      const parsed = parseInt(inventoryStr.replace(/[^0-9]/g, ''))
+      return isNaN(parsed) ? '0' : parsed.toString()
+    }
+
+    // Calculate prices
+    const msrp = parsePrice(mapPrice)
+    const discountedPrice = parsePrice(salePrice)
+    const salePriceNum = parsePrice(salePrice)
+
+    // Generate slug from name
+    const generateSlug = (name: string, itemNo: string, spuNo: string, rowIndex: number) => {
+      const baseSlug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim()
+      
+      // Add item number, spu number, and row index to ensure uniqueness
+      const itemSuffix = itemNo?.trim() ? `-${itemNo}` : ''
+      const spuSuffix = spuNo?.trim() ? `-${spuNo}` : ''
+      const timestamp = Date.now().toString().slice(-6) // Last 6 digits of timestamp
+      const randomSuffix = Math.random().toString(36).substr(2, 4) // 4 random characters
+      return `${baseSlug}${itemSuffix}${spuSuffix}-${rowIndex}-${timestamp}-${randomSuffix}`.substring(0, 100) // Limit length
+    }
+
+    // Parse full category path into individual categories
+    const parseCategoryPath = (fullCategoryPath: string) => {
+      if (!fullCategoryPath || fullCategoryPath.trim() === '') {
+        return {
+          fullCategory: 'Other',
+          category1: 'Other',
+          category2: 'Other',
+          category3: 'Other',
+          category4: 'Other'
+        }
+      }
+      
+      const categories = fullCategoryPath.split('>>').map(cat => cat.trim())
+      
+      return {
+        fullCategory: fullCategoryPath,
+        category1: categories[0] || 'Other',
+        category2: categories[1] || 'Other',
+        category3: categories[2] || 'Other',
+        category4: categories[3] || 'Other'
+      }
+    }
+
+    // Smart column detection - fix common mapping issues
+    let actualPromotionEnd = promotionEndDate?.trim() || null
+    let actualMainImage = mainImage?.trim() || ''
+    
+    // If promotionEnd looks like an image URL, swap it with mainImage
+    if (actualPromotionEnd && isImageUrl(actualPromotionEnd) && !isImageUrl(actualMainImage)) {
+      console.log(`🔄 Swapping promotionEnd and mainImage for row ${rowIndex + 1}`)
+      const temp = actualPromotionEnd
+      actualPromotionEnd = actualMainImage
+      actualMainImage = temp
+    }
+    
+    // Look for the actual main image in the row if it's not in the expected position
+    if (!actualMainImage || actualMainImage === '') {
+      for (let i = 0; i < row.length; i++) {
+        if (isImageUrl(row[i])) {
+          actualMainImage = row[i]
+          console.log(`🔍 Found main image at column ${i + 1}: ${actualMainImage}`)
+          break
+        }
+      }
+    }
+    
+    // Look for the actual promotion end date if it's not in the expected position
+    if (!actualPromotionEnd || !isDate(actualPromotionEnd)) {
+      for (let i = 0; i < row.length; i++) {
+        if (isDate(row[i])) {
+          actualPromotionEnd = row[i]
+          console.log(`🔍 Found promotion end date at column ${i + 1}: ${actualPromotionEnd}`)
+          break
+        }
+      }
+    }
+
+    const categoryData = parseCategoryPath(category1?.trim() || '')
+
+    return {
+      spuNo: spuNo?.trim() || '',
+      itemNo: itemNo?.trim() || null,
+      slug: generateSlug(name?.trim() || 'untitled-product', itemNo?.trim() || '', spuNo?.trim() || '', rowIndex),
+      fullCategory: categoryData.fullCategory,
+      category1: categoryData.category1,
+      category2: categoryData.category2,
+      category3: categoryData.category3,
+      category4: categoryData.category4,
+      name: name?.trim() || 'Untitled Product',
+      supplier: supplier?.trim() || null,
+      brand: brand?.trim() || null,
+      vt1: variant1?.trim() || null,
+      vv1: variant2?.trim() || null,
+      vt2: variant3?.trim() || null,
+      vv2: variant4?.trim() || null,
+      sku: sku?.trim() || null,
+      msrp: msrp,
+      salePrice: salePriceNum,
+      discountedPrice: discountedPrice,
+      dropshippingPrice: parsePrice(dropshippingPrice),
+      map: null,
+      inventory: parseInventory(inventory),
+      inventoryLoc: inventoryLocation?.trim() || null,
+      shippingMethod: null,
+      shipTo: null,
+      shippingCost: parsePrice(shippingCost)?.toString() || '0',
+      promotionStart: null,
+      promotionEnd: actualPromotionEnd,
+      mainImage: actualMainImage,
+      images: [image2, image3, image4, image5].filter(img => img?.trim()).map(img => img.trim()),
+      description: description?.trim() || null,
+      shortDescription: null,
+      upc: upc?.trim() || null,
+      asin: asin?.trim() || null,
+      processingTime: null,
+      ean: null,
+      dsFrom: null,
+      dealId: null,
+      status: 'active',
+      metaTitle: null,
+      metaDescription: null,
+      metaKeywords: null
+    }
+  } catch (error) {
+    throw new Error(`Row ${rowIndex + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Check authentication and admin permissions
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+    
+    const userRole = (session.user as any).role
+    if (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Insufficient permissions. Admin role required.' }, { status: 403 })
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('file') as File
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    // Validate file type
+    if (!file.type.includes('csv') && !file.name.endsWith('.csv')) {
+      return NextResponse.json({ error: 'Invalid file type. Only CSV files are allowed.' }, { status: 400 })
+    }
+
+    // Check file size (10MB max for basic import)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: 'File size exceeds 10MB limit. Use background processing for larger files.' }, { status: 400 })
+    }
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'csv-imports')
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true })
+    }
+
+    // Save file temporarily
+    const fileName = `import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.csv`
+    const filePath = join(uploadsDir, fileName)
+    const buffer = await file.arrayBuffer()
+    await writeFile(filePath, Buffer.from(buffer))
+
+    // Process CSV
+    const csvContent = Buffer.from(buffer).toString('utf-8')
+    const records = parseCSV(csvContent)
+    
+    // Check existing products count for debugging
+    const existingCount = await prisma.product.count()
+    console.log(`📊 Current products in database: ${existingCount}`)
+    
+    let totalProcessed = 0
+    let totalSuccess = 0
+    let totalFailed = 0
+    const allErrors: string[] = []
+
+    // Use a transaction to ensure all products are committed together
+    await prisma.$transaction(async (tx) => {
+      // Process each row
+      for (let i = 1; i < records.length; i++) { // Skip header row
+        try {
+          const product = transformCSVRow(records[i], i)
+          
+          // Validate required fields - only require spuNo since we allow duplicates
+          if (!product.spuNo) {
+            totalFailed++
+            allErrors.push(`Row ${i + 1}: SPU Number is required`)
+            continue
+          }
+
+          // Check if product already exists by slug (since we allow same spuNo)
+          const existingProduct = await tx.product.findFirst({
+            where: {
+              slug: product.slug
+            }
+          })
+
+          if (existingProduct) {
+            // Update existing product
+            console.log(`🔄 Updating existing product: ${product.name} (ID: ${existingProduct.id})`)
+            await tx.product.update({
+              where: { id: existingProduct.id },
+              data: product
+            })
+          } else {
+            // Create new product
+            console.log(`➕ Creating new product: ${product.name} (SPU: ${product.spuNo}, Slug: ${product.slug})`)
+            try {
+              const createdProduct = await tx.product.create({
+                data: product
+              })
+              console.log(`✅ Product created with ID: ${createdProduct.id}`)
+            } catch (createError) {
+              console.error(`❌ Failed to create product:`, createError)
+              throw createError
+            }
+          }
+
+          totalSuccess++
+          totalProcessed++
+        } catch (error) {
+          totalFailed++
+          totalProcessed++
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          console.error(`❌ Error processing row ${i + 1}:`, errorMessage)
+          allErrors.push(`Row ${i + 1}: ${errorMessage}`)
+        }
+      }
+    })
+
+    // Add a small delay to ensure transaction is fully committed
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // Clean up temporary file
+    try {
+      await import('fs').then(fs => fs.promises.unlink(filePath))
+    } catch (error) {
+      console.warn('Failed to delete temporary file:', error)
+    }
+
+    // Check final products count
+    const finalCount = await prisma.product.count()
+    console.log(`📊 Products after import: ${finalCount} (was ${existingCount})`)
+    
+    const response = {
+      success: true,
+      report: {
+        totalRows: totalProcessed,
+        successCount: totalSuccess,
+        failCount: totalFailed,
+        executeFailedCount: 0,
+        errors: allErrors.slice(0, 50) // Limit errors in response
+      }
+    }
+    
+    console.log('📊 CSV Import completed:', response)
+    return NextResponse.json(response)
+
+  } catch (error) {
+    console.error('CSV import error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error during CSV import' },
+      { status: 500 }
+    )
+  }
+}

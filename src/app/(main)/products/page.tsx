@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { Star, Heart, ShoppingCart, Filter, Search, Grid, List } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import toast from 'react-hot-toast'
+import { sanitizeImageUrl } from '@/lib/image-utils'
+import { calculatePricing, formatPrice } from '@/lib/pricing'
 
 interface Product {
   id: string
@@ -183,7 +185,7 @@ export default function ProductsPage() {
                         viewMode === 'list' ? 'h-48' : 'aspect-square'
                       }`}>
                         <Image
-                          src={product.mainImage || '/images/placeholder-product.jpg'}
+                          src={sanitizeImageUrl(product.mainImage)}
                           alt={product.name}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -216,14 +218,21 @@ export default function ProductsPage() {
 
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xl font-bold text-gray-900">
-                          ${Number(product.salePrice || 0).toFixed(2)}
-                        </span>
-                        {product.msrp && product.salePrice < product.msrp && (
-                          <span className="text-sm text-gray-500 line-through">
-                            ${Number(product.msrp).toFixed(2)}
-                          </span>
-                        )}
+                        {(() => {
+                          const pricing = calculatePricing(product.msrp, product.discountedPrice)
+                          return (
+                            <>
+                              <span className="text-xl font-bold text-gray-900">
+                                {formatPrice(pricing.finalPrice)}
+                              </span>
+                              {pricing.hasDiscount && pricing.originalPrice && (
+                                <span className="text-sm text-gray-500 line-through">
+                                  {formatPrice(pricing.originalPrice)}
+                                </span>
+                              )}
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
 

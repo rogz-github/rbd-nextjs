@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react'
 import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import Link from 'next/link'
+import { sanitizeImageUrl } from '@/lib/image-utils'
+import { calculatePricing, formatPrice } from '@/lib/pricing'
 
 interface Product {
   id: string
@@ -13,6 +15,7 @@ interface Product {
   slug: string
   salePrice: number
   msrp: number
+  discountedPrice: number
   mainImage: string
   brand: string
   category1: string
@@ -90,7 +93,7 @@ export default function CategoryPage() {
                 <Link href={`/products/${product.slug}`}>
                   <div className="aspect-w-1 aspect-h-1">
                     <Image
-                      src={product.mainImage || '/images/placeholder-product.jpg'}
+                      src={sanitizeImageUrl(product.mainImage)}
                       alt={product.name}
                       width={300}
                       height={300}
@@ -103,14 +106,21 @@ export default function CategoryPage() {
                     </h3>
                     <p className="text-sm text-gray-600 mb-2">{product.brand}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-semibold text-pink-600">
-                        ${product.salePrice?.toFixed(2) || '0.00'}
-                      </span>
-                      {product.msrp && product.msrp > product.salePrice && (
-                        <span className="text-sm text-gray-500 line-through">
-                          ${product.msrp.toFixed(2)}
-                        </span>
-                      )}
+                      {(() => {
+                        const pricing = calculatePricing(product.msrp, product.discountedPrice)
+                        return (
+                          <>
+                            <span className="text-lg font-semibold text-pink-600">
+                              {formatPrice(pricing.finalPrice)}
+                            </span>
+                            {pricing.hasDiscount && pricing.originalPrice && (
+                              <span className="text-sm text-gray-500 line-through">
+                                {formatPrice(pricing.originalPrice)}
+                              </span>
+                            )}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 </Link>

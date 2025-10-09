@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { calculatePricing } from '@/lib/pricing'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,56 +30,96 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get cart items with product details
-    const cartItems = await prisma.$queryRaw`
-      SELECT 
-        c.id as cart_id,
-        c."user_type",
-        c."user_id",
-        c."prod_id",
-        c."prod_quantity",
-        c.status,
-        c."createdAt",
-        c."updatedAt",
-        p.id as product_id,
-        p."spu_no",
-        p.name,
-        p.slug,
-        p."sale_price",
-        p."msrp",
-        p."discounted_price",
-        p."main_image",
-        p.images,
-        p.brand,
-        p."category_1",
-        p.inventory
-      FROM "Cart" c
-      LEFT JOIN "Product" p ON c."prod_id" = p.id
-      WHERE c."user_type" = ${userType} 
-      AND c."user_id" = ${userId}
-      AND c.status = 'active'
-      ORDER BY c."createdAt" DESC
-    ` as any[]
-
-    // Calculate totals
-    let subtotal = 0
-    const itemsWithTotals = cartItems.map(item => {
-      const itemTotal = Number(item.sale_price || 0) * item.prod_quantity
-      subtotal += itemTotal
-      return {
-        ...item,
-        itemTotal: itemTotal
+    // Get cart items with product details using Prisma ORM
+    console.log('Fetching cart items for:', { userType, userId })
+    
+    const cartItems = await prisma.cart.findMany({
+      where: {
+        userType: userType,
+        userId: userId,
+        status: 'active'
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     })
 
-    return NextResponse.json({
+    // Get product details separately for now
+    const cartItemsWithProducts = await Promise.all(
+      cartItems.map(async (cartItem) => {
+        const product = await prisma.product.findUnique({
+          where: { id: cartItem.prodId },
+          select: {
+            id: true,
+            spuNo: true,
+            name: true,
+            slug: true,
+            salePrice: true,
+            msrp: true,
+            discountedPrice: true,
+            mainImage: true,
+            images: true,
+            brand: true,
+            category1: true,
+            inventory: true
+          }
+        })
+        return { ...cartItem, product }
+      })
+    )
+
+    console.log('Cart items from Prisma ORM:', cartItemsWithProducts)
+
+    // Calculate totals using proper pricing logic
+    let subtotal = 0
+    const itemsWithTotals = cartItemsWithProducts
+      .filter(item => item.product !== null) // Filter out items with missing products
+      .map(item => {
+        const product = item.product! // We know it's not null after filtering
+        const pricing = calculatePricing(
+          product.msrp ? Number(product.msrp) : 0, 
+          product.discountedPrice ? Number(product.discountedPrice) : 0
+        )
+        const itemTotal = pricing.finalPrice * item.prodQuantity
+        subtotal += itemTotal
+        
+        // Map to the expected format for the frontend
+        return {
+          cart_id: item.id,
+          user_type: item.userType,
+          user_id: item.userId,
+          prod_id: item.prodId,
+          prod_quantity: item.prodQuantity,
+          status: item.status,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          product_id: product.id,
+          spu_no: product.spuNo,
+          name: product.name,
+          slug: product.slug,
+          sale_price: product.salePrice ? Number(product.salePrice) : 0,
+          msrp: product.msrp ? Number(product.msrp) : 0,
+          discounted_price: product.discountedPrice ? Number(product.discountedPrice) : 0,
+          main_image: product.mainImage,
+          images: product.images,
+          brand: product.brand,
+          category_1: product.category1,
+          inventory: product.inventory,
+          itemTotal: itemTotal
+        }
+      })
+
+    const response = {
       success: true,
       cartItems: itemsWithTotals,
       subtotal: subtotal,
-      itemCount: cartItems.length,
+      itemCount: cartItemsWithProducts.length,
       userType,
       userId
-    })
+    }
+
+    
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error fetching cart items:', error)
     return NextResponse.json(

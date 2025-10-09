@@ -270,11 +270,7 @@ export function Hero() {
     setIsAutoPlaying(false)
   }
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true)
-    await fetchBanners(true)
-    setIsRefreshing(false)
-  }
+
 
   const currentSlideData = slides[currentSlide]
 
@@ -282,11 +278,9 @@ export function Hero() {
   if (loading) {
     return (
       <section className="relative overflow-hidden">
-        <div className="relative w-full h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] xl:h-[500px] bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
+        <div className="relative w-full h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] xl:h-[735px] bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-            <div className="text-gray-600 font-medium">Loading banners...</div>
-            <div className="text-gray-400 text-sm mt-2">Optimizing for your device</div>
           </div>
         </div>
       </section>
@@ -406,15 +400,6 @@ export function Hero() {
           <ChevronRight className="w-6 h-6 text-white" />
         </button>
 
-        {/* Refresh Button - Top right corner */}
-        <button
-          onClick={handleManualRefresh}
-          disabled={isRefreshing}
-          className="absolute top-4 right-4 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center transition-all duration-300 z-10 touch-manipulation shadow-lg hover:shadow-xl disabled:opacity-50"
-          aria-label="Refresh banners"
-        >
-          <RefreshCw className={`w-5 h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
-        </button>
 
         {/* Slide Indicators - Pink theme with glow effect */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3 z-10">
@@ -437,28 +422,7 @@ export function Hero() {
       </div>
 
       {/* Trust Indicators */}
-      <div className="bg-white/95 backdrop-blur-sm py-4">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center space-x-2 justify-center">
-              <Truck className="w-4 h-4 text-gray-600" />
-              <span className="text-sm text-gray-700">Free Shipping</span>
-            </div>
-            <div className="flex items-center space-x-2 justify-center">
-              <Shield className="w-4 h-4 text-gray-600" />
-              <span className="text-sm text-gray-700">Secure Payment</span>
-            </div>
-            <div className="flex items-center space-x-2 justify-center">
-              <RotateCcw className="w-4 h-4 text-gray-600" />
-              <span className="text-sm text-gray-700">Easy Returns</span>
-            </div>
-            <div className="flex items-center space-x-2 justify-center">
-              <Star className="w-4 h-4 text-gray-600" />
-              <span className="text-sm text-gray-700">5-Star Rating</span>
-            </div>
-          </div>
-        </div>
-      </div>
+ 
     </section>
   )
 }

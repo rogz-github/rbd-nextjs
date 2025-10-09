@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn, getSession } from 'next-auth/react'
+import { signIn, getSession, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -15,11 +15,10 @@ export default function SignIn() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [userName, setUserName] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
   const router = useRouter()
+  const { data: session, update: updateSession } = useSession()
 
   // Check if user is already logged in
   useEffect(() => {
@@ -110,26 +109,24 @@ export default function SignIn() {
         })
         toast.error('Login failed. Please check your credentials and try again.')
       } else if (result?.ok) {
-        console.log('Login successful, getting session...')
-        // Get user session to display welcome message
+        console.log('Login successful, updating session...')
+        
+        // Force session update
+        await updateSession()
+        
+        // Get updated session
         const session = await getSession()
         console.log('Session after login:', session)
         
         const name = session?.user?.name || 'User'
-        setUserName(name)
-        setIsSuccess(true)
         
-        // Show success toast with user's name
+        // Show brief success toast
         toast.success(`Welcome back, ${name}!`, {
-          duration: 3000,
-          icon: '🎉',
+          duration: 1500,
         })
         
-        // Wait for success animation, then redirect
-        setTimeout(() => {
-          router.push('/')
-          router.refresh()
-        }, 2000)
+        // Redirect immediately to home page
+        window.location.href = '/'
       } else {
         console.log('Unexpected result:', result)
         toast.error('Login failed. Please try again.')
@@ -142,50 +139,6 @@ export default function SignIn() {
     }
   }
 
-  // Show success animation if login was successful
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400/20 to-blue-600/20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-emerald-400/20 to-green-600/20 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="relative w-full max-w-md">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 text-center">
-            <div className="mb-6">
-              <Link href="/" className="inline-block hover:opacity-80 transition-opacity duration-200 mb-4">
-                <Image
-                  src="/images/logo/ready-logo.webp"
-                  alt="RBD Logo"
-                  width={100}
-                  height={50}
-                  priority
-                  className="object-contain mx-auto"
-                  style={{ width: 'auto', height: 'auto' }}
-                  quality={100}
-                />
-              </Link>
-              <div className="animate-bounce">
-                <div className="h-16 w-16 text-green-500 mx-auto drop-shadow-lg text-6xl">✅</div>
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {userName}! 🎉
-            </h2>
-            <p className="text-gray-600 mb-6">
-              You have successfully signed in to your account.
-            </p>
-            <div className="flex items-center justify-center bg-green-50 rounded-lg py-3 px-4">
-              <div className="animate-spin text-green-600 mr-2">⏳</div>
-              <span className="text-sm text-green-700 font-medium">Redirecting you to the homepage...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -210,7 +163,6 @@ export default function SignIn() {
                   height={60}
                   priority
                   className="object-contain mx-auto"
-                  style={{ width: 'auto', height: 'auto' }}
                   quality={100}
                 />
               </Link>

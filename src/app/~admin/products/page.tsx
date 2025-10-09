@@ -14,12 +14,16 @@ import {
   Package,
   DollarSign,
   Tag,
-  Loader2
+  Loader2,
+  Upload,
+  FileText
 } from 'lucide-react'
 import { PricingDisplay } from '@/components/PricingDisplay'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { AdminFooter } from '@/components/admin/AdminFooter'
+import { CSVImportModal } from '@/components/admin/CSVImportModal'
+import { sanitizeImageUrl } from '@/lib/image-utils'
 
 interface Product {
   id: string
@@ -44,6 +48,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isCSVImportOpen, setIsCSVImportOpen] = useState(false)
 
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(prev => !prev)
@@ -53,34 +58,63 @@ export default function ProductsPage() {
     setIsMobileMenuOpen(false)
   }
 
+  const handleCSVImportSuccess = () => {
+    // Refresh the products list after successful import with cache busting
+    console.log('CSV import completed, refreshing products...')
+    
+    // Add a small delay to ensure database changes are committed
+    setTimeout(() => {
+      fetchProducts(true) // Force refresh to bypass cache
+    }, 500)
+  }
+
+  const fetchProducts = async (forceRefresh = false) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const params = new URLSearchParams()
+      if (searchTerm) params.append('search', searchTerm)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      params.append('limit', '50') // Get more products for better UX
+      
+      // Add cache-busting timestamp
+      if (forceRefresh) {
+        params.append('_t', Date.now().toString())
+      }
+      
+      const response = await fetch(`/api/admin/products?${params}`, {
+        credentials: 'include',
+        cache: forceRefresh ? 'no-cache' : 'default',
+        headers: {
+          'Cache-Control': forceRefresh ? 'no-cache, no-store, must-revalidate' : 'default',
+          'Pragma': forceRefresh ? 'no-cache' : 'default',
+          'Expires': forceRefresh ? '0' : 'default'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch products')
+      }
+      
+      const data = await response.json()
+      console.log('📦 Fetched products:', { 
+        count: data.products?.length || 0, 
+        products: data.products,
+        pagination: data.pagination,
+        forceRefresh 
+      })
+      setProducts(data.products || [])
+    } catch (err) {
+      console.error('Error fetching products:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch products')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Fetch products from API
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const params = new URLSearchParams()
-        if (searchTerm) params.append('search', searchTerm)
-        if (statusFilter !== 'all') params.append('status', statusFilter)
-        params.append('limit', '50') // Get more products for better UX
-        
-        const response = await fetch(`/api/admin/products?${params}`)
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch products')
-        }
-        
-        const data = await response.json()
-        setProducts(data.products || [])
-      } catch (err) {
-        console.error('Error fetching products:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch products')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchProducts()
   }, [searchTerm, statusFilter])
 
@@ -123,13 +157,30 @@ export default function ProductsPage() {
               <h1 className="text-3xl font-bold text-gray-900">Products</h1>
               <p className="text-gray-600 mt-1">Manage your product inventory</p>
             </div>
-            <Link
-              href="/~admin/products/add"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Product</span>
-            </Link>
+            <div className="flex gap-3">
+              <button
+                onClick={() => fetchProducts(true)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                title="Refresh products list"
+              >
+                <Package className="w-4 h-4" />
+                <span>Refresh</span>
+              </button>
+              <button
+                onClick={() => setIsCSVImportOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Import CSV</span>
+              </button>
+              <Link
+                href="/~admin/products/add"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Product</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -200,7 +251,7 @@ export default function ProductsPage() {
                 {/* Product Image */}
                 <div className="aspect-square bg-gray-100 relative">
                   <Image
-                    src={product.mainImage || '/images/placeholder-product.jpg'}
+                    src={sanitizeImageUrl(product.mainImage)}
                     alt={product.name}
                     fill
                     className="object-cover"
@@ -286,6 +337,13 @@ export default function ProductsPage() {
         {/* Footer */}
         <AdminFooter />
       </div>
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={isCSVImportOpen}
+        onClose={() => setIsCSVImportOpen(false)}
+        onSuccess={handleCSVImportSuccess}
+      />
     </div>
   )
 }

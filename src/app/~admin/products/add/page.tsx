@@ -193,6 +193,7 @@ export default function AddProductPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for session
         body: JSON.stringify({
           ...formData,
           status: 'draft',
@@ -456,6 +457,7 @@ export default function AddProductPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for session
         body: JSON.stringify({
           ...formData,
           fullCategory: formData.fullCategory || formData.category1

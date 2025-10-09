@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import { User, Mail, Phone, MapPin, CreditCard, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { calculatePricing, formatPrice } from '@/lib/pricing'
 
 interface CheckoutFormData {
   email: string
@@ -739,7 +740,11 @@ Please contact us to complete this order.`
                         </p>
                       </div>
                       <p className="text-sm font-medium text-gray-900">
-                        ${(Number(item.sale_price) * item.prod_quantity).toFixed(2)}
+                        {(() => {
+                          const pricing = calculatePricing(item.msrp, item.discounted_price)
+                          const totalPrice = pricing.finalPrice * item.prod_quantity
+                          return formatPrice(totalPrice)
+                        })()}
                       </p>
                     </div>
                   ))}

@@ -4,15 +4,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
+  let body: any = null
+  
   try {
     // Check if user is authenticated and is admin
     const session = await getServerSession(authOptions)
-    console.log('🔍 API Session check:', { 
-      hasSession: !!session, 
-      hasUser: !!session?.user, 
-      role: (session?.user as any)?.role,
-      isAdmin: (session?.user as any)?.isAdmin 
-    })
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -23,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions. Admin role required.' }, { status: 403 })
     }
 
-    const body = await request.json()
+    body = await request.json()
     const {
       name,
       description,
@@ -48,36 +44,48 @@ export async function POST(request: NextRequest) {
       metaKeywords
     } = body
 
+    // Validate required fields
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Product name is required' }, { status: 422 })
+    }
+    
+    if (!category1 || !category1.trim()) {
+      return NextResponse.json({ error: 'Primary category is required' }, { status: 422 })
+    }
+
     // Generate unique identifiers
     const spuNo = `SPU-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+    // Provide default mainImage if empty
+    const defaultMainImage = mainImage && mainImage.trim() ? mainImage : '/images/placeholder-product.jpg'
 
     // Create product in database
     const product = await prisma.product.create({
       data: {
         spuNo,
         slug,
-        name,
-        description,
-        shortDescription,
-        sku,
-        category1,
-        category2,
-        category3,
-        category4,
-        fullCategory: fullCategory || category1,
-        brand,
-        supplier,
+        name: name.trim(),
+        description: description?.trim() || null,
+        shortDescription: shortDescription?.trim() || null,
+        sku: sku?.trim() || null,
+        category1: category1.trim(),
+        category2: category2?.trim() || null,
+        category3: category3?.trim() || null,
+        category4: category4?.trim() || null,
+        fullCategory: (fullCategory || category1).trim(),
+        brand: brand?.trim() || null,
+        supplier: supplier?.trim() || null,
         salePrice: salePrice ? parseFloat(salePrice) : null,
         discountedPrice: discountedPrice ? parseFloat(discountedPrice) : null,
         msrp: msrp ? parseFloat(msrp) : null,
         inventory: inventory || '0',
-        mainImage,
+        mainImage: defaultMainImage,
         images: images ? images : null,
         status,
-        metaTitle,
-        metaDescription,
-        metaKeywords
+        metaTitle: metaTitle?.trim() || null,
+        metaDescription: metaDescription?.trim() || null,
+        metaKeywords: metaKeywords?.trim() || null
       }
     })
 
@@ -93,10 +101,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating product:', error)
+    console.error('Request body:', body)
     
     // Handle specific Prisma errors
     if (error && typeof error === 'object' && 'code' in error) {
       const prismaError = error as any
+      console.error('Prisma error details:', {
+        code: prismaError.code,
+        meta: prismaError.meta,
+        message: prismaError.message
+      })
       
       switch (prismaError.code) {
         case 'P2002':
@@ -199,6 +213,13 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
+    // Debug: Log the query parameters
+    console.log('🔍 GET API Query params:', { page, limit, search, status, skip })
+    
+    // Debug: Check database connection and total products
+    const totalProductsInDB = await prisma.product.count()
+    console.log('🔍 Total products in database:', totalProductsInDB)
+    
     // Get products with pagination
     const [products, total] = await Promise.all([
       prisma.product.findMany({
@@ -224,8 +245,16 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where })
     ])
+    
+    // Debug: Log the results
+    console.log('🔍 GET API Results:', { 
+      productsCount: products.length, 
+      totalCount: total,
+      firstProduct: products[0]?.name || 'No products',
+      whereClause: where
+    })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       products,
       pagination: {
         page,
@@ -234,6 +263,13 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit)
       }
     })
+
+    // Add cache-busting headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
 
   } catch (error) {
     console.error('Error fetching products:', error)

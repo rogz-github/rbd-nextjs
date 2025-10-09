@@ -96,6 +96,40 @@ export async function POST(request: NextRequest) {
       data: encryptedData
     })
 
+    // Clear cart items after successful order creation
+    try {
+      if (orderData.cartItems && orderData.cartItems.length > 0) {
+        // Extract cart item IDs from the cart items
+        const cartItemIds = orderData.cartItems
+          .map((item: any) => item.cartId || item.id)
+          .filter((id: any) => id !== undefined)
+        
+        if (cartItemIds.length > 0) {
+          // Delete cart items by IDs
+          await prisma.cart.deleteMany({
+            where: {
+              id: {
+                in: cartItemIds
+              }
+            }
+          })
+          console.log(`✅ Cleared ${cartItemIds.length} cart items after checkout`)
+        } else {
+          // Fallback: clear all cart items for the user
+          const clearResult = await prisma.cart.deleteMany({
+            where: {
+              userId: parseInt(orderData.userId) || 0,
+              userType: orderData.userType || 'guest'
+            }
+          })
+          console.log(`✅ Cleared ${clearResult.count} cart items for user after checkout`)
+        }
+      }
+    } catch (cartError) {
+      console.error('⚠️ Warning: Failed to clear cart items after checkout:', cartError)
+      // Don't fail the order creation if cart clearing fails
+    }
+
     console.log('Order created successfully with ID:', order.coId)
     console.log('=== ORDER CREATION SUCCESS ===')
     

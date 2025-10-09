@@ -234,7 +234,6 @@ export default function SignUp() {
                   height={50}
                   priority
                   className="object-contain mx-auto"
-                  style={{ width: 'auto', height: 'auto' }}
                   quality={100}
                 />
               </Link>
@@ -281,7 +280,6 @@ export default function SignUp() {
                   height={60}
                   priority
                   className="object-contain mx-auto"
-                  style={{ width: 'auto', height: 'auto' }}
                   quality={100}
                 />
               </Link>

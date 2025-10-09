@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession, signOut, getSession } from 'next-auth/react'
 import { useCart } from '@/context/cart-context'
 import { Search, ShoppingCart, User, Heart, Car, Menu, X, Facebook, Twitter, Instagram } from 'lucide-react'
 import RbdLogo from '@/components/RbdLogo'
@@ -16,6 +16,41 @@ export function UserHeader() {
   const [accountDropdownTimeout, setAccountDropdownTimeout] = useState<NodeJS.Timeout | null>(null)
   const { data: session } = useSession()
   const { state } = useCart()
+
+  // Debug: Log cart state changes in header
+  useEffect(() => {
+    console.log('UserHeader - Cart state changed:', {
+      itemCount: state.itemCount,
+      total: state.total,
+      items: state.items.length,
+      loading: state.loading,
+      loaded: state.loaded
+    })
+  }, [state.itemCount, state.total, state.items, state.loading, state.loaded])
+
+  // Debug: Log session changes in header
+  useEffect(() => {
+    console.log('UserHeader - Session changed:', {
+      session: !!session,
+      user: session?.user?.name || session?.user?.email || 'No user',
+      role: session?.user?.role || 'No role',
+      sessionData: session
+    })
+  }, [session])
+
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('UserHeader - Component rendered with session:', !!session)
+  }, [])
+
+  // Force session refresh on component mount
+  useEffect(() => {
+    const refreshSession = async () => {
+      const currentSession = await getSession()
+      console.log('UserHeader - Forced session refresh:', currentSession)
+    }
+    refreshSession()
+  }, [])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -414,7 +449,12 @@ export function UserHeader() {
                 >
                   <div className="flex flex-col items-center space-y-1 text-gray-700 hover:text-pink-500 transition-colors cursor-pointer">
                     <User className="w-6 h-6" />
-                    <span className="text-sm font-medium">Account</span>
+                    <span className="text-sm font-medium">
+                      {session ? (session.user?.name || session.user?.email || 'Account') : 'Account'}
+                    </span>
+                    {session && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    )}
                   </div>
                   
                   {/* Dropdown Menu */}
@@ -432,7 +472,15 @@ export function UserHeader() {
                           </Link>
                           <hr className="my-2" />
                           <button
-                            onClick={() => signOut()}
+                            onClick={async () => {
+                              console.log('Logging out...')
+                              await signOut({ 
+                                redirect: false,
+                                callbackUrl: '/'
+                              })
+                              // Force page refresh to update session state
+                              window.location.reload()
+                            }}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
                             Sign Out
@@ -668,48 +716,80 @@ export function UserHeader() {
               {activeTab === 'ACCOUNT' && (
                 <div className="p-4">
                   <nav className="space-y-2">
-                    <Link
-                      href="/auth/signin"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      href="/auth/signup"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
-                    <Link
-                      href="/profile"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      href="/orders"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Orders
-                    </Link>
-                    <Link
-                      href="/wishlist"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Wishlist
-                    </Link>
-                    <Link
-                      href="/cart"
-                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Cart
-                    </Link>
+                    {session ? (
+                      <>
+                        <div className="px-2 py-3 text-sm text-gray-500 border-b border-gray-200 mb-4">
+                          Welcome, {session.user?.name || session.user?.email}
+                        </div>
+                        <Link
+                          href="/profile"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          href="/orders"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Orders
+                        </Link>
+                        <Link
+                          href="/wishlist"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Wishlist
+                        </Link>
+                        <Link
+                          href="/cart"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Cart
+                        </Link>
+                        <hr className="my-2" />
+                        <button
+                          onClick={async () => {
+                            console.log('Mobile logout...')
+                            await signOut({ 
+                              redirect: false,
+                              callbackUrl: '/'
+                            })
+                            setIsMobileMenuOpen(false)
+                            window.location.reload()
+                          }}
+                          className="block w-full text-left py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href="/auth/signin"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Sign In
+                        </Link>
+                        <Link
+                          href="/auth/signup"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Sign Up
+                        </Link>
+                        <Link
+                          href="/cart"
+                          className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          Cart
+                        </Link>
+                      </>
+                    )}
                   </nav>
                 </div>
               )}

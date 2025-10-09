@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { Star, Heart, ShoppingCart, ArrowLeft, Share2, Truck, Shield, RotateCcw } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import toast from 'react-hot-toast'
+import { sanitizeImageUrl } from '@/lib/image-utils'
+import { calculatePricing, formatPrice } from '@/lib/pricing'
 
 interface Product {
   id: string
@@ -137,7 +139,7 @@ export default function ProductPage() {
     )
   }
 
-  const images = product.images && Array.isArray(product.images) ? product.images : [product.mainImage]
+  const images = product.images && Array.isArray(product.images) ? product.images : [sanitizeImageUrl(product.mainImage)]
   const discountPercentage = product.msrp && product.salePrice < product.msrp 
     ? Math.round(((product.msrp - product.salePrice) / product.msrp) * 100)
     : 0
@@ -167,7 +169,7 @@ export default function ProductPage() {
           <div className="space-y-4">
             <div className="aspect-square bg-white rounded-lg overflow-hidden shadow-sm">
               <Image
-                src={images[selectedImage] || product.mainImage}
+                src={images[selectedImage] || sanitizeImageUrl(product.mainImage)}
                 alt={product.name}
                 width={600}
                 height={600}
@@ -231,14 +233,21 @@ export default function ProductPage() {
             {/* Price */}
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
-                <span className="text-3xl font-bold text-gray-900">
-                  ${Number(product.salePrice || 0).toFixed(2)}
-                </span>
-                {product.msrp && product.salePrice < product.msrp && (
-                  <span className="text-xl text-gray-500 line-through">
-                    ${Number(product.msrp).toFixed(2)}
-                  </span>
-                )}
+                {(() => {
+                  const pricing = calculatePricing(product.msrp, product.discountedPrice)
+                  return (
+                    <>
+                      <span className="text-3xl font-bold text-gray-900">
+                        {formatPrice(pricing.finalPrice)}
+                      </span>
+                      {pricing.hasDiscount && pricing.originalPrice && (
+                        <span className="text-xl text-gray-500 line-through">
+                          {formatPrice(pricing.originalPrice)}
+                        </span>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
               
               {product.dropshippingPrice && (

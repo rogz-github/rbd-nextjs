@@ -25,5 +25,10 @@ PRISMA INSTALLATION THEN REN
  npx prisma migrate deploy => to deploy migration to neon
  npx prisma db seed => to generate dummy products
  npx prisma studio => to run the prisma database
+ 
 
 
+== PUSH NEW CHANGES FROM LOCAL  TO GITHUB
+git add .
+git commit -m "Changes 100925 - 5:14pm"
+git push origin main

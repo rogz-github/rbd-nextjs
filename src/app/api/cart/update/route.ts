@@ -8,6 +8,8 @@ export async function PUT(request: NextRequest) {
     const session = await getServerSession(authOptions)
     const { cartItemId, quantity, guestUserId } = await request.json()
 
+    console.log('Cart update request:', { cartItemId, quantity, guestUserId, session: !!session })
+
     if (!cartItemId || quantity === undefined) {
       return NextResponse.json(
         { success: false, message: 'Cart item ID and quantity are required' },
@@ -39,24 +41,48 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Update cart item quantity
-    const result = await prisma.$executeRaw`
-      UPDATE "Cart" 
-      SET "prod_quantity" = ${quantity},
-          "updatedAt" = NOW()
-      WHERE id = ${cartItemId}
-      AND "user_type" = ${userType} 
-      AND "user_id" = ${userId}
-      AND status = 'active'
-    `
+    console.log('User info:', { userType, userId })
 
-    if (result === 0) {
+    // Update cart item quantity using Prisma ORM
+    console.log('Executing update query with:', { cartItemId, quantity, userType, userId })
+    
+    // First, check if the cart item exists and belongs to the user
+    const existingItem = await prisma.cart.findFirst({
+      where: {
+        id: cartItemId,
+        userType: userType,
+        userId: userId,
+        status: 'active'
+      }
+    })
+
+    console.log('Existing cart item found:', existingItem)
+
+    if (!existingItem) {
+      console.log('No cart item found or unauthorized')
       return NextResponse.json(
         { success: false, message: 'Cart item not found or unauthorized' },
         { status: 404 }
       )
     }
 
+    // Update the cart item
+    const updatedItem = await prisma.cart.update({
+      where: { id: cartItemId },
+      data: {
+        prodQuantity: quantity,
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('Cart item updated successfully:', updatedItem)
+    
+    // Verify the update by fetching the item again
+    const verifyItem = await prisma.cart.findUnique({
+      where: { id: cartItemId }
+    })
+    console.log('Verification - cart item after update:', verifyItem)
+    
     return NextResponse.json({
       success: true,
       message: 'Cart item updated successfully'

@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get all cart items using raw SQL
-    const cartItems = await prisma.$queryRaw`
-      SELECT * FROM "Cart" 
-      ORDER BY "createdAt" DESC
-    `
+    // Get all cart items using Prisma ORM
+    const cartItems = await prisma.cart.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
     
     return NextResponse.json({
       success: true,
@@ -30,15 +31,21 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Create cart item using raw SQL
-    const result = await prisma.$executeRaw`
-      INSERT INTO "Cart" (id, "user_type", "user_id", "prod_id", "prod_quantity", "status", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), ${body.userType || 'guest'}, ${parseInt(body.userId) || 1}, ${body.prodId || 'prod-123'}, ${parseInt(body.prodQuantity) || 1}, ${body.status || 'active'}, NOW(), NOW())
-    `
+    // Create cart item using Prisma ORM
+    const cartItem = await prisma.cart.create({
+      data: {
+        userType: body.userType || 'guest',
+        userId: parseInt(body.userId) || 1,
+        prodId: body.prodId || 'prod-123',
+        prodQuantity: parseInt(body.prodQuantity) || 1,
+        status: body.status || 'active'
+      }
+    })
     
     return NextResponse.json({
       success: true,
-      message: 'Cart item created successfully'
+      message: 'Cart item created successfully',
+      data: cartItem
     })
   } catch (error) {
     console.error('Error creating cart item:', error)

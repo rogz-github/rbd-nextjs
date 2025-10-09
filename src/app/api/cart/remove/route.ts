@@ -34,22 +34,39 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Remove cart item (soft delete by setting status to 'removed')
-    const result = await prisma.$executeRaw`
-      UPDATE "Cart" 
-      SET status = 'removed',
-          "updatedAt" = NOW()
-      WHERE id = ${cartItemId}
-      AND "user_type" = ${userType} 
-      AND "user_id" = ${userId}
-    `
+    // Remove cart item using Prisma ORM (soft delete by setting status to 'removed')
+    console.log('Removing cart item:', { cartItemId, userType, userId })
+    
+    // First, check if the cart item exists and belongs to the user
+    const existingItem = await prisma.cart.findFirst({
+      where: {
+        id: parseInt(cartItemId),
+        userType: userType,
+        userId: userId,
+        status: 'active'
+      }
+    })
 
-    if (result === 0) {
+    console.log('Existing cart item found for removal:', existingItem)
+
+    if (!existingItem) {
+      console.log('No cart item found or unauthorized for removal')
       return NextResponse.json(
         { success: false, message: 'Cart item not found or unauthorized' },
         { status: 404 }
       )
     }
+
+    // Update the cart item status to 'removed'
+    const updatedItem = await prisma.cart.update({
+      where: { id: parseInt(cartItemId) },
+      data: {
+        status: 'removed',
+        updatedAt: new Date()
+      }
+    })
+
+    console.log('Cart item removed successfully:', updatedItem)
 
     return NextResponse.json({
       success: true,

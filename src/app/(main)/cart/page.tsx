@@ -3,33 +3,63 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, RefreshCw } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import { useSession } from 'next-auth/react'
-import { formatPrice } from '@/lib/utils'
+import { calculatePricing, formatPrice } from '@/lib/pricing'
 import ConfirmModal from '@/components/ConfirmModal'
 
 export default function CartPage() {
-  const { state, updateQuantity, removeFromCart, clearCart } = useCart()
+  const { state, updateQuantity, removeFromCart, clearCart, loadCart, forceRefreshCart, debugReloadCart, debugClearLocalStorage, debugShowGuestId, debugTestCartWithGuestId } = useCart()
   const { data: session } = useSession()
   const [showClearModal, setShowClearModal] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [itemToRemove, setItemToRemove] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const handleQuantityChange = async (cartItemId: string, newQuantity: number) => {
+  // Debug: Log cart state changes
+  useEffect(() => {
+    console.log('Cart page - state changed:', {
+      items: state.items,
+      total: state.total,
+      itemCount: state.itemCount,
+      loading: state.loading,
+      updating: state.updating,
+      guestUserId: state.guestUserId,
+      localStorageGuestId: typeof window !== 'undefined' ? localStorage.getItem('guestUserId') : 'N/A'
+    })
+  }, [state.items, state.total, state.itemCount, state.loading, state.updating, state.guestUserId])
+
+  const handleQuantityChange = async (cartItemId: number, newQuantity: number) => {
+    console.log('Cart page - handleQuantityChange called:', { cartItemId, newQuantity })
     if (newQuantity <= 0) {
-      setItemToRemove(cartItemId)
+      setItemToRemove(cartItemId.toString())
       setShowRemoveModal(true)
     } else {
+      console.log('Cart page - calling updateQuantity...')
       await updateQuantity(cartItemId, newQuantity)
+      console.log('Cart page - updateQuantity completed')
     }
   }
 
-  const handleRemoveItem = (cartItemId: string) => {
-    setItemToRemove(cartItemId)
+  const handleRemoveItem = (cartItemId: number) => {
+    setItemToRemove(cartItemId.toString())
     setShowRemoveModal(true)
+  }
+
+  const handleRefreshCart = async () => {
+    console.log('Cart page - manually refreshing cart...')
+    setIsRefreshing(true)
+    try {
+      await loadCart()
+      console.log('Cart page - manual refresh completed')
+    } catch (error) {
+      console.error('Cart page - manual refresh failed:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const confirmRemoveItem = async () => {
@@ -37,7 +67,7 @@ export default function CartPage() {
     
     setIsRemoving(true)
     try {
-      await removeFromCart(itemToRemove)
+      await removeFromCart(parseInt(itemToRemove))
       setShowRemoveModal(false)
       setItemToRemove(null)
     } finally {
@@ -112,13 +142,73 @@ export default function CartPage() {
               {state.itemCount} {state.itemCount === 1 ? 'item' : 'items'} in your cart
             </p>
           </div>
-          <Link 
-            href="/products" 
-            className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Continue Shopping
-          </Link>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={debugShowGuestId}
+              className="flex items-center text-purple-600 hover:text-purple-700 font-medium px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors duration-200"
+              title="Show guest user ID info"
+            >
+              Show Guest ID
+            </button>
+            <button
+              onClick={() => debugTestCartWithGuestId('570865')}
+              className="flex items-center text-green-600 hover:text-green-700 font-medium px-4 py-2 rounded-lg hover:bg-green-50 transition-colors duration-200"
+              title="Test cart with guest ID 570865"
+            >
+              Test Cart ID 570865
+            </button>
+            <button
+              onClick={async () => {
+                console.log('=== TESTING CART API DIRECTLY ===');
+                const response = await fetch('/api/cart/get?guestUserId=570865');
+                const data = await response.json();
+                console.log('Direct API response:', data);
+                console.log('Item count:', data.itemCount);
+                console.log('Items:', data.cartItems);
+              }}
+              className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+              title="Test API directly"
+            >
+              Test API Direct
+            </button>
+            <button
+              onClick={debugClearLocalStorage}
+              className="flex items-center text-orange-600 hover:text-orange-700 font-medium px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors duration-200"
+              title="Clear localStorage and start fresh"
+            >
+              Clear & Restart
+            </button>
+            <button
+              onClick={forceRefreshCart}
+              className="flex items-center text-indigo-600 hover:text-indigo-700 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors duration-200"
+              title="Force refresh cart"
+            >
+              Force Refresh
+            </button>
+            <button
+              onClick={debugReloadCart}
+              className="flex items-center text-red-600 hover:text-red-700 font-medium px-4 py-2 rounded-lg hover:bg-red-50 transition-colors duration-200"
+              title="Debug reload cart"
+            >
+              Debug
+            </button>
+            <button
+              onClick={handleRefreshCart}
+              disabled={isRefreshing}
+              className="flex items-center text-gray-600 hover:text-gray-700 font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+              title="Refresh cart"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <Link 
+              href="/products" 
+              className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Continue Shopping
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -151,7 +241,6 @@ export default function CartPage() {
                               width={80}
                               height={80}
                               className="w-full h-full object-cover"
-                              style={{ width: 'auto', height: 'auto' }}
                               unoptimized={item.main_image?.startsWith('https://')}
                             />
                           </div>
@@ -205,10 +294,17 @@ export default function CartPage() {
                       {/* Price */}
                       <div className="text-right">
                         <p className="text-lg font-semibold text-gray-900">
-                          {formatPrice(item.itemTotal)}
+                          {(() => {
+                            const pricing = calculatePricing(item.msrp, item.discounted_price)
+                            const totalPrice = pricing.finalPrice * item.prod_quantity
+                            return formatPrice(totalPrice)
+                          })()}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {formatPrice(Number(item.sale_price))} each
+                          {(() => {
+                            const pricing = calculatePricing(item.msrp, item.discounted_price)
+                            return `${formatPrice(pricing.finalPrice)} each`
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -240,10 +336,7 @@ export default function CartPage() {
                       {state.total >= 50 ? 'Free' : formatPrice(9.99)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="font-medium">{formatPrice(state.total * 0.08)}</span>
-                  </div>
+          
                   <hr className="border-gray-200" />
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Total</span>
