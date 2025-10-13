@@ -126,9 +126,56 @@ export default function OrdersPage() {
       <div className="container">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Order History</h1>
-            <p className="text-gray-600">Track and manage your orders</p>
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center">
+                <Package className="w-8 h-8 text-pink-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Order History
+                </h1>
+                <p className="text-gray-600">Track and manage your orders</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center">
+                <Package className="w-8 h-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                  <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center">
+                <DollarSign className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Spent</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ${orders.reduce((sum, order) => sum + Number(order.coTotalPrice), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center">
+                <Calendar className="w-8 h-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Recent Order</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {orders.length > 0 
+                      ? new Date(Math.max(...orders.map(o => new Date(o.coCreated).getTime()))).toLocaleDateString()
+                      : 'No orders yet'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Filters */}
@@ -240,7 +287,7 @@ export default function OrdersPage() {
                             </span>
                             <br />
                             <span>
-                              {order.shippingAddress.address || order.shippingAddress.address1}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode || order.shippingAddress.zip}
+                              {order.shippingAddress.address1 || order.shippingAddress.address}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip || order.shippingAddress.zipCode}
                             </span>
                           </div>
                         </div>

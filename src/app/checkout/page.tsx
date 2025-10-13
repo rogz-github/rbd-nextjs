@@ -262,8 +262,21 @@ export default function CheckoutPage() {
   }
 
   const handlePayPalError = (error: any) => {
-    setPaypalError(`Payment failed: ${error.message || 'Please try again.'}`)
-    toast.error(`Payment failed: ${error.message || 'Please try again.'}`)
+    console.error('PayPal error:', error)
+    console.error('Error details:', JSON.stringify(error, null, 2))
+    
+    let errorMessage = 'Payment failed. Please try again.'
+    
+    if (error.message) {
+      errorMessage = `Payment failed: ${error.message}`
+    } else if (error.details && error.details.length > 0) {
+      errorMessage = `Payment failed: ${error.details[0].description || error.details[0].issue}`
+    } else if (error.name) {
+      errorMessage = `Payment failed: ${error.name}`
+    }
+    
+    setPaypalError(errorMessage)
+    toast.error(errorMessage)
   }
 
   const handlePayPalScriptError = (error: any) => {
@@ -486,7 +499,7 @@ export default function CheckoutPage() {
 
                   <PayPalScriptProvider
                     options={{
-                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'sb',
+                      clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'Aa-89Bgblsg8sv2E15S2V7wUk8r9uHFGXJ3WVTWxr1nk4CQtcbTujdhbblG4J0Ejcz02Y_N7TCiHsQNs',
                       currency: 'USD',
                       intent: 'capture',
                     }}
@@ -512,7 +525,9 @@ export default function CheckoutPage() {
                       onApprove={handlePayPalSuccess}
                       onError={handlePayPalError}
                       onInit={(data, actions) => {
+                        console.log('PayPal initialized successfully:', data)
                         setPaypalLoaded(true)
+                        setPaypalError(null)
                       }}
                       style={{
                         layout: 'vertical',
@@ -523,7 +538,8 @@ export default function CheckoutPage() {
                       disabled={!isFormValid}
                     />
                   </PayPalScriptProvider>
-                  
+              
+
                   {/* Loading state */}
                   {!paypalLoaded && !paypalError && (
                     <div className="mt-4 p-4 bg-blue-50 rounded-lg">
@@ -690,7 +706,7 @@ export default function CheckoutPage() {
                               <button
                                 onClick={() => {
                                   const orderSummary = `Order Summary:
-Total: $${total.toFixed(2)}
+Total: ${formatPrice(total)}
 Items: ${state.items.length}
 Email: ${formData.email}
 
@@ -753,21 +769,21 @@ Please contact us to complete this order.`
                 <div className="space-y-3 border-t border-gray-200 pt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-gray-900">${state.total.toFixed(2)}</span>
+                    <span className="text-gray-900">{formatPrice(state.total)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
                     <span className="text-gray-900">
-                      {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                      {shipping === 0 ? 'Free' : formatPrice(shipping)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tax</span>
-                    <span className="text-gray-900">${tax.toFixed(2)}</span>
+                    <span className="text-gray-900">{formatPrice(tax)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-3">
                     <span className="text-gray-900">Total</span>
-                    <span className="text-gray-900">${total.toFixed(2)}</span>
+                    <span className="text-gray-900">{formatPrice(total)}</span>
                   </div>
                 </div>
               </div>

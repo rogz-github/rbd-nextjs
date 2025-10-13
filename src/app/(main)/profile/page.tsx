@@ -2,13 +2,15 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { User, Settings, ShoppingBag, Heart, CreditCard, MapPin } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [ordersCount, setOrdersCount] = useState(0)
+  const [loadingOrders, setLoadingOrders] = useState(true)
 
   useEffect(() => {
     if (status === 'loading') return // Still loading
@@ -16,6 +18,29 @@ export default function ProfilePage() {
       router.push('/auth/signin')
     }
   }, [session, status, router])
+
+  // Fetch user orders count
+  useEffect(() => {
+    if (session?.user) {
+      fetchOrdersCount()
+    }
+  }, [session])
+
+  const fetchOrdersCount = async () => {
+    try {
+      const response = await fetch('/api/orders/user')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setOrdersCount(data.orders?.length || 0)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching orders count:', error)
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
 
   if (status === 'loading') {
     return (
@@ -37,7 +62,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center space-x-4">
@@ -60,7 +85,13 @@ export default function ProfilePage() {
                 <ShoppingBag className="w-8 h-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {loadingOrders ? (
+                      <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                    ) : (
+                      ordersCount
+                    )}
+                  </p>
                 </div>
               </div>
             </div>

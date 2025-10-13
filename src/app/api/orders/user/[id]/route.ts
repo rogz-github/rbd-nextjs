@@ -10,15 +10,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
+    // Check authentication (optional for success page)
     const session = await getServerSession(authOptions)
     console.log('API - Session:', session?.user?.id)
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
+    
+    // For success page, we'll allow access without authentication
+    // but we'll need to validate the order exists and is accessible
 
     // Convert ID to integer
     const orderId = parseInt(params.id)
@@ -44,14 +41,29 @@ export async function GET(
       )
     }
 
-    // Security: Only allow users to access their own orders
-    console.log('API - Order user ID:', order.coUserId, 'Session user ID:', parseInt(session.user.id))
-    if (order.coUserId !== parseInt(session.user.id)) {
-      console.log('API - Unauthorized access attempt')
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized access to order' },
-        { status: 403 }
-      )
+    // Security: Only allow users to access their own orders (if authenticated)
+    // For success page, we'll allow access to recent orders (within last 24 hours)
+    if (session?.user) {
+      console.log('API - Order user ID:', order.coUserId, 'Session user ID:', parseInt(session.user.id))
+      if (order.coUserId !== parseInt(session.user.id)) {
+        console.log('API - Unauthorized access attempt')
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized access to order' },
+          { status: 403 }
+        )
+      }
+    } else {
+      // For guest users, only allow access to recent orders (within 24 hours)
+      const orderAge = Date.now() - new Date(order.createdAt).getTime()
+      const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+      
+      if (orderAge > maxAge) {
+        console.log('API - Order too old for guest access')
+        return NextResponse.json(
+          { success: false, error: 'Order access expired. Please log in to view older orders.' },
+          { status: 403 }
+        )
+      }
     }
 
     // Fetch user data separately
@@ -75,9 +87,28 @@ export async function GET(
     let shippingAddress = {}
     let billingAddress = {}
     
+    console.log('API - Raw shippingAddress from decryptedOrder:', decryptedOrder.shippingAddress)
+    console.log('API - Raw billingAddress from decryptedOrder:', decryptedOrder.billingAddress)
+    
     try {
-      shippingAddress = decryptedOrder.shippingAddress ? JSON.parse(decryptedOrder.shippingAddress) : {}
-      billingAddress = decryptedOrder.billingAddress ? JSON.parse(decryptedOrder.billingAddress) : {}
+      if (decryptedOrder.shippingAddress) {
+        if (typeof decryptedOrder.shippingAddress === 'string') {
+          shippingAddress = JSON.parse(decryptedOrder.shippingAddress)
+        } else {
+          shippingAddress = decryptedOrder.shippingAddress
+        }
+      }
+      
+      if (decryptedOrder.billingAddress) {
+        if (typeof decryptedOrder.billingAddress === 'string') {
+          billingAddress = JSON.parse(decryptedOrder.billingAddress)
+        } else {
+          billingAddress = decryptedOrder.billingAddress
+        }
+      }
+      
+      console.log('API - Parsed shippingAddress:', shippingAddress)
+      console.log('API - Parsed billingAddress:', billingAddress)
     } catch (error) {
       console.error('Error parsing addresses:', error)
     }
@@ -121,7 +152,8 @@ export async function GET(
             name: item.name || item.productName || 'Unknown Product',
             price: price,
             images: item.images || (item.main_image ? [item.main_image] : []),
-            description: item.description || ''
+            description: item.description || '',
+            slug: item.slug || item.productSlug || `product-${item.prod_id || item.productId || index + 1}`
           }
         }
       })
@@ -171,7 +203,9 @@ export async function GET(
       subtotal: orderDetails.subtotal,
       tax: orderDetails.tax,
       shipping: orderDetails.shipping,
-      total: orderDetails.total
+      total: orderDetails.total,
+      shippingAddress: orderDetails.shippingAddress,
+      billingAddress: orderDetails.billingAddress
     })
 
     return NextResponse.json({

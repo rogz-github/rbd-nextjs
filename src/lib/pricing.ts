@@ -45,10 +45,10 @@ export function calculatePricing(msrp: string | number, discountedPrice?: string
 /**
  * Format price for display
  * @param price - Price to format
- * @returns Formatted price string
+ * @returns Formatted price string with comma separators
  */
 export function formatPrice(price: number): string {
-  return `$${price.toFixed(2)}`
+  return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 /**

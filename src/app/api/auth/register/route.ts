@@ -4,116 +4,95 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const { firstName, lastName, username, email, password } = await request.json()
+    const body = await request.json()
+    const { firstName, lastName, username, email, password } = body
 
-    // Validate input
+    // --- Validate required fields ---
     if (!firstName || !lastName || !username || !email || !password) {
-      return NextResponse.json(
-        { message: 'All fields are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'All fields are required.' }, { status: 400 })
     }
 
-    // Validate email format
+    // --- Normalize input ---
+    const normalizedEmail = email.toLowerCase().trim()
+    const normalizedUsername = username.toLowerCase().trim()
+
+    // --- Validate email format ---
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json({ message: 'Invalid email format.' }, { status: 400 })
+    }
+
+    // --- Validate password strength ---
+    const passwordErrors = []
+    if (password.length < 8) passwordErrors.push('at least 8 characters')
+    if (!/[A-Z]/.test(password)) passwordErrors.push('one uppercase letter')
+    if (!/[a-z]/.test(password)) passwordErrors.push('one lowercase letter')
+    if (!/[0-9]/.test(password)) passwordErrors.push('one number')
+    if (!/[^A-Za-z0-9]/.test(password)) passwordErrors.push('one special character')
+    if (passwordErrors.length > 0) {
       return NextResponse.json(
-        { message: 'Please enter a valid email address' },
+        { message: `Password must include ${passwordErrors.join(', ')}.` },
         { status: 400 }
       )
     }
 
-    // Validate password strength
-    if (password.length < 8) {
-      return NextResponse.json(
-        { message: 'Password must be at least 8 characters' },
-        { status: 400 }
-      )
+    // --- Check duplicates in parallel (better performance) ---
+    const [existingEmail, existingUsername] = await Promise.all([
+      prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      prisma.user.findUnique({ where: { username: normalizedUsername } }),
+    ])
+
+    if (existingEmail) {
+      return NextResponse.json({ message: 'Email is already registered.' }, { status: 400 })
     }
 
-    // Check if user already exists with email
-    const existingUserByEmail = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    })
-
-    if (existingUserByEmail) {
-      return NextResponse.json(
-        { message: 'User already exists with this email' },
-        { status: 400 }
-      )
+    if (existingUsername) {
+      return NextResponse.json({ message: 'Username is already taken.' }, { status: 400 })
     }
 
-    // Check if username already exists
-    const existingUserByUsername = await prisma.user.findUnique({
-      where: { username: username.toLowerCase() } as any
-    })
+    // --- Hash password ---
+    const hashedPassword = await bcrypt.hash(password, 12) // 12 is secure & performant
 
-    if (existingUserByUsername) {
-      return NextResponse.json(
-        { message: 'Username already taken' },
-        { status: 400 }
-      )
-    }
-
-    // Hash password with higher salt rounds for better security
-    const hashedPassword = await bcrypt.hash(password, 14)
-
-    // Create user in database
-    const user = await prisma.user.create({
+    // --- Create user ---
+    const newUser = await prisma.user.create({
       data: {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        username: username.toLowerCase().trim(),
-        email: email.toLowerCase().trim(),
+        username: normalizedUsername,
+        email: normalizedEmail,
         password: hashedPassword,
         role: 'USER',
-        emailVerifiedAt: null,
-        rememberToken: null,
-      } as any
-    })
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
-
-    console.log('User created successfully:', {
-      id: user.id,
-      username: (user as any).username,
-      email: user.email,
-      firstName: (user as any).firstName,
-      lastName: (user as any).lastName,
-      role: user.role
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     })
 
     return NextResponse.json(
-      { 
-        message: 'User created successfully', 
-        user: userWithoutPassword 
+      {
+        message: 'Account created successfully.',
+        user: newUser,
       },
       { status: 201 }
     )
   } catch (error) {
     console.error('Registration error:', error)
-    
-    // Handle specific Prisma errors
-    if (error instanceof Error) {
-      if (error.message.includes('Unique constraint')) {
-        if (error.message.includes('email')) {
-          return NextResponse.json(
-            { message: 'User already exists with this email' },
-            { status: 400 }
-          )
-        }
-        if (error.message.includes('username')) {
-          return NextResponse.json(
-            { message: 'Username already taken' },
-            { status: 400 }
-          )
-        }
-      }
+
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return NextResponse.json(
+        { message: 'Account already exists with these credentials.' },
+        { status: 400 }
+      )
     }
-    
+
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Something went wrong. Please try again later.' },
       { status: 500 }
     )
   }

@@ -3,44 +3,31 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import { useSession } from 'next-auth/react'
 import { calculatePricing, formatPrice } from '@/lib/pricing'
 import ConfirmModal from '@/components/ConfirmModal'
 
 export default function CartPage() {
-  const { state, updateQuantity, removeFromCart, clearCart, loadCart, forceRefreshCart, debugReloadCart, debugClearLocalStorage, debugShowGuestId, debugTestCartWithGuestId } = useCart()
+  const { state, updateQuantity, removeFromCart, clearCart, loadCart } = useCart()
   const { data: session } = useSession()
   const [showClearModal, setShowClearModal] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [itemToRemove, setItemToRemove] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Debug: Log cart state changes
-  useEffect(() => {
-    console.log('Cart page - state changed:', {
-      items: state.items,
-      total: state.total,
-      itemCount: state.itemCount,
-      loading: state.loading,
-      updating: state.updating,
-      guestUserId: state.guestUserId,
-      localStorageGuestId: typeof window !== 'undefined' ? localStorage.getItem('guestUserId') : 'N/A'
-    })
-  }, [state.items, state.total, state.itemCount, state.loading, state.updating, state.guestUserId])
+
+  // Note: Cart context handles loading cart data automatically
+  // No need to reload on mount as it might interfere with the context's own loading logic
 
   const handleQuantityChange = async (cartItemId: number, newQuantity: number) => {
-    console.log('Cart page - handleQuantityChange called:', { cartItemId, newQuantity })
     if (newQuantity <= 0) {
       setItemToRemove(cartItemId.toString())
       setShowRemoveModal(true)
     } else {
-      console.log('Cart page - calling updateQuantity...')
       await updateQuantity(cartItemId, newQuantity)
-      console.log('Cart page - updateQuantity completed')
     }
   }
 
@@ -49,18 +36,6 @@ export default function CartPage() {
     setShowRemoveModal(true)
   }
 
-  const handleRefreshCart = async () => {
-    console.log('Cart page - manually refreshing cart...')
-    setIsRefreshing(true)
-    try {
-      await loadCart()
-      console.log('Cart page - manual refresh completed')
-    } catch (error) {
-      console.error('Cart page - manual refresh failed:', error)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
 
   const confirmRemoveItem = async () => {
     if (!itemToRemove) return
@@ -89,10 +64,13 @@ export default function CartPage() {
     }
   }
 
-  if (state.loading) {
+  if (state.loading || !state.loaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your cart...</p>
+        </div>
       </div>
     )
   }
@@ -143,64 +121,6 @@ export default function CartPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <button
-              onClick={debugShowGuestId}
-              className="flex items-center text-purple-600 hover:text-purple-700 font-medium px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors duration-200"
-              title="Show guest user ID info"
-            >
-              Show Guest ID
-            </button>
-            <button
-              onClick={() => debugTestCartWithGuestId('570865')}
-              className="flex items-center text-green-600 hover:text-green-700 font-medium px-4 py-2 rounded-lg hover:bg-green-50 transition-colors duration-200"
-              title="Test cart with guest ID 570865"
-            >
-              Test Cart ID 570865
-            </button>
-            <button
-              onClick={async () => {
-                console.log('=== TESTING CART API DIRECTLY ===');
-                const response = await fetch('/api/cart/get?guestUserId=570865');
-                const data = await response.json();
-                console.log('Direct API response:', data);
-                console.log('Item count:', data.itemCount);
-                console.log('Items:', data.cartItems);
-              }}
-              className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
-              title="Test API directly"
-            >
-              Test API Direct
-            </button>
-            <button
-              onClick={debugClearLocalStorage}
-              className="flex items-center text-orange-600 hover:text-orange-700 font-medium px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors duration-200"
-              title="Clear localStorage and start fresh"
-            >
-              Clear & Restart
-            </button>
-            <button
-              onClick={forceRefreshCart}
-              className="flex items-center text-indigo-600 hover:text-indigo-700 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors duration-200"
-              title="Force refresh cart"
-            >
-              Force Refresh
-            </button>
-            <button
-              onClick={debugReloadCart}
-              className="flex items-center text-red-600 hover:text-red-700 font-medium px-4 py-2 rounded-lg hover:bg-red-50 transition-colors duration-200"
-              title="Debug reload cart"
-            >
-              Debug
-            </button>
-            <button
-              onClick={handleRefreshCart}
-              disabled={isRefreshing}
-              className="flex items-center text-gray-600 hover:text-gray-700 font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
-              title="Refresh cart"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
             <Link 
               href="/products" 
               className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"

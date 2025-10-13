@@ -61,8 +61,12 @@ export default function BottomBannerPage() {
   // Fetch banner images (all statuses for admin)
   const fetchBannerImages = async () => {
     try {
-      const response = await fetch('/api/bottom-banners', {
-        credentials: 'include'
+      const response = await fetch(`/api/bottom-banners?t=${Date.now()}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       })
       if (response.ok) {
         const data = await response.json()

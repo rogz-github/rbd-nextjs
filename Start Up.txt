@@ -30,5 +30,5 @@ PRISMA INSTALLATION THEN REN
 
 == PUSH NEW CHANGES FROM LOCAL  TO GITHUB
 git add .
-git commit -m "Changes 100925 - 5:24pm"
+git commit -m "Changes 101325 - 4:40pm"
 git push origin main

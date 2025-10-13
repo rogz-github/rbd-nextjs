@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Star, Heart, ShoppingCart, Loader2 } from 'lucide-react'
 import { useCart } from '@/context/cart-context'
 import toast from 'react-hot-toast'
@@ -27,6 +28,7 @@ interface Product {
 
 export function FeaturedProducts() {
   const { addToCart } = useCart()
+  const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +61,15 @@ export function FeaturedProducts() {
   }, [])
 
   const handleAddToCart = async (product: any) => {
-    await addToCart(product.id, 1)
+    try {
+      await addToCart(product.id, 1)
+      // Redirect to cart page after successful add
+      // The addToCart function already handles cart reloading
+      router.push('/cart')
+    } catch (error) {
+      // Error handling is already done in the addToCart function
+      console.error('Error adding to cart:', error)
+    }
   }
 
   if (loading) {

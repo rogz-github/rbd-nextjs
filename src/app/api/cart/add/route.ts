@@ -92,12 +92,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Item added to cart successfully',
       userType,
       userId
     })
+
+    // Add cache-busting headers to prevent caching
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
   } catch (error) {
     console.error('Error adding item to cart:', error)
     return NextResponse.json(

@@ -89,7 +89,11 @@ export default function SignIn() {
     setIsLoading(true)
 
     try {
-      console.log('Attempting login with:', formData.usernameOrEmail)
+      // Clear any potential cached session data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('nextauth.message')
+        sessionStorage.clear()
+      }
       
       const result = await signIn('credentials', {
         usernameOrEmail: formData.usernameOrEmail,
@@ -98,10 +102,7 @@ export default function SignIn() {
         redirect: false,
       })
 
-      console.log('Login result:', result)
-
       if (result?.error) {
-        console.log('Login error:', result.error)
         // Set specific error for invalid credentials
         setErrors({
           usernameOrEmail: 'The username/email or password you entered is incorrect',
@@ -109,26 +110,16 @@ export default function SignIn() {
         })
         toast.error('Login failed. Please check your credentials and try again.')
       } else if (result?.ok) {
-        console.log('Login successful, updating session...')
-        
-        // Force session update
-        await updateSession()
-        
-        // Get updated session
-        const session = await getSession()
-        console.log('Session after login:', session)
-        
-        const name = session?.user?.name || 'User'
-        
-        // Show brief success toast
-        toast.success(`Welcome back, ${name}!`, {
-          duration: 1500,
+        // Show success toast immediately
+        toast.success('Login successful! Redirecting...', {
+          duration: 2000,
         })
         
-        // Redirect immediately to home page
-        window.location.href = '/'
+        // Wait a bit for the session to be established, then redirect
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
       } else {
-        console.log('Unexpected result:', result)
         toast.error('Login failed. Please try again.')
       }
     } catch (error) {

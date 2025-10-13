@@ -186,12 +186,6 @@ export default function SignUp() {
         setUserName(name)
         setIsSuccess(true)
         
-        // Show success toast with user's name
-        toast.success(`Welcome, ${name}! Account created successfully!`, {
-          duration: 3000,
-          icon: '🎉',
-        })
-        
         // Wait for success animation, then redirect
         setTimeout(() => {
           router.push('/auth/signin')

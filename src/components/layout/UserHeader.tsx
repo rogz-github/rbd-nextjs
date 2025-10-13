@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSession, signOut, getSession } from 'next-auth/react'
 import { useCart } from '@/context/cart-context'
-import { Search, ShoppingCart, User, Heart, Car, Menu, X, Facebook, Twitter, Instagram } from 'lucide-react'
+import { Search, ShoppingCart, User, Heart, Car, Menu, X, Facebook, Twitter, Instagram, LogOut } from 'lucide-react'
 import RbdLogo from '@/components/RbdLogo'
+import { toast } from 'react-hot-toast'
 
 export function UserHeader() {
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false)
@@ -14,40 +15,42 @@ export function UserHeader() {
   const [activeTab, setActiveTab] = useState('MENU')
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [accountDropdownTimeout, setAccountDropdownTimeout] = useState<NodeJS.Timeout | null>(null)
-  const { data: session } = useSession()
-  const { state } = useCart()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const { data: session, status } = useSession()
+  const { state, clearCart } = useCart()
 
-  // Debug: Log cart state changes in header
-  useEffect(() => {
-    console.log('UserHeader - Cart state changed:', {
-      itemCount: state.itemCount,
-      total: state.total,
-      items: state.items.length,
-      loading: state.loading,
-      loaded: state.loaded
-    })
-  }, [state.itemCount, state.total, state.items, state.loading, state.loaded])
-
-  // Debug: Log session changes in header
-  useEffect(() => {
-    console.log('UserHeader - Session changed:', {
-      session: !!session,
-      user: session?.user?.name || session?.user?.email || 'No user',
-      role: session?.user?.role || 'No role',
-      sessionData: session
-    })
-  }, [session])
-
-  // Debug: Log when component renders
-  useEffect(() => {
-    console.log('UserHeader - Component rendered with session:', !!session)
-  }, [])
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      // Call custom logout API
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        // Show logout success message
+        toast.success('Logged out successfully')
+      }
+      
+      // Use NextAuth signOut with redirect
+      await signOut({ 
+        callbackUrl: '/',
+        redirect: true 
+      })
+      
+    } catch (error) {
+      // Fallback: force page reload
+      window.location.href = '/'
+    }
+  }
 
   // Force session refresh on component mount
   useEffect(() => {
     const refreshSession = async () => {
-      const currentSession = await getSession()
-      console.log('UserHeader - Forced session refresh:', currentSession)
+      await getSession()
     }
     refreshSession()
   }, [])
@@ -450,21 +453,23 @@ export function UserHeader() {
                   <div className="flex flex-col items-center space-y-1 text-gray-700 hover:text-pink-500 transition-colors cursor-pointer">
                     <User className="w-6 h-6" />
                     <span className="text-sm font-medium">
-                      {session ? (session.user?.name || session.user?.email || 'Account') : 'Account'}
+                      {status === 'loading' ? 'Loading...' : session ? 'My Account' : 'Login'}
                     </span>
-                    {session && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    )}
+              
                   </div>
                   
                   {/* Dropdown Menu */}
                   {isAccountDropdownOpen && (
                     <div className="absolute right-0 top-full w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" style={{ zIndex: 9999 }}>
-                      {session ? (
+                      {status === 'loading' ? (
+                        <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                          Loading...
+                        </div>
+                      ) : session ? (
                         <>
                           <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             <User className="w-4 h-4 mr-3" />
-                            My Account
+                            My Profile
                           </Link>
                           <Link href="/orders" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             <ShoppingCart className="w-4 h-4 mr-3" />
@@ -472,14 +477,9 @@ export function UserHeader() {
                           </Link>
                           <hr className="my-2" />
                           <button
-                            onClick={async () => {
-                              console.log('Logging out...')
-                              await signOut({ 
-                                redirect: false,
-                                callbackUrl: '/'
-                              })
-                              // Force page refresh to update session state
-                              window.location.reload()
+                            onClick={() => {
+                              setIsAccountDropdownOpen(false)
+                              setShowLogoutConfirm(true)
                             }}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           >
@@ -497,7 +497,7 @@ export function UserHeader() {
                           <hr className="my-2" />
                           <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             <User className="w-4 h-4 mr-3" />
-                            My Account
+                            My Profile
                           </Link>
                           <Link href="/orders" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             <ShoppingCart className="w-4 h-4 mr-3" />
@@ -716,7 +716,11 @@ export function UserHeader() {
               {activeTab === 'ACCOUNT' && (
                 <div className="p-4">
                   <nav className="space-y-2">
-                    {session ? (
+                    {status === 'loading' ? (
+                      <div className="px-2 py-3 text-sm text-gray-500 text-center">
+                        Loading...
+                      </div>
+                    ) : session ? (
                       <>
                         <div className="px-2 py-3 text-sm text-gray-500 border-b border-gray-200 mb-4">
                           Welcome, {session.user?.name || session.user?.email}
@@ -751,14 +755,9 @@ export function UserHeader() {
                         </Link>
                         <hr className="my-2" />
                         <button
-                          onClick={async () => {
-                            console.log('Mobile logout...')
-                            await signOut({ 
-                              redirect: false,
-                              callbackUrl: '/'
-                            })
+                          onClick={() => {
                             setIsMobileMenuOpen(false)
-                            window.location.reload()
+                            setShowLogoutConfirm(true)
                           }}
                           className="block w-full text-left py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
                         >
@@ -808,6 +807,47 @@ export function UserHeader() {
                   <Instagram className="w-5 h-5" />
                 </a>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 h-screen w-screen z-[10000] flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full mx-auto transform transition-all duration-300 ease-out">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+              <div className="flex items-center justify-center">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                  <LogOut className="h-8 w-8 text-orange-600" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 text-center mt-4 mb-2">
+                ⚠️ SIGN OUT CONFIRMATION
+              </h3>
+              <p className="text-sm text-gray-600 text-center leading-relaxed mb-4">
+                <strong>Are you sure you want to sign out?</strong> You will need to sign in again to access your profile, orders, and saved items.
+              </p>
+            </div>
+            
+            {/* Actions */}
+            <div className="px-6 py-4 bg-gray-50 rounded-b-xl flex space-x-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false)
+                  handleLogout()
+                }}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </div>

@@ -64,6 +64,7 @@ function SortableBannerRow({
   onToggleActive, 
   onEdit,
   onActivate,
+  onPermanentDelete,
   onPreview
 }: { 
   banner: SliderBanner
@@ -71,6 +72,7 @@ function SortableBannerRow({
   onToggleActive: (id: number, isActive: boolean) => void
   onEdit: (banner: SliderBanner) => void
   onActivate: (id: number) => void
+  onPermanentDelete: (id: number) => void
   onPreview: (url: string, title: string, type: 'IMAGE' | 'VIDEO') => void
 }) {
   const {
@@ -192,26 +194,46 @@ function SortableBannerRow({
           <button
             onClick={() => onEdit(banner)}
             className="text-blue-600 hover:text-blue-900"
+            title="Edit banner"
           >
             <Edit className="w-4 h-4" />
           </button>
           {banner.isActive ? (
-            <button
-              onClick={() => onDelete(banner.id)}
-              className="text-red-600 hover:text-red-900"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <>
+              <button
+                onClick={() => onDelete(banner.id)}
+                className="text-orange-600 hover:text-orange-900"
+                title="Deactivate banner"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onPermanentDelete(banner.id)}
+                className="text-red-600 hover:text-red-900"
+                title="Permanently delete banner"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
           ) : (
-            <button
-              onClick={() => onActivate(banner.id)}
-              className="text-green-600 hover:text-green-900"
-              title="Activate banner"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
+            <>
+              <button
+                onClick={() => onActivate(banner.id)}
+                className="text-green-600 hover:text-green-900"
+                title="Activate banner"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => onPermanentDelete(banner.id)}
+                className="text-red-600 hover:text-red-900"
+                title="Permanently delete banner"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
           )}
         </div>
       </td>
@@ -227,6 +249,7 @@ export default function SliderBannersPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingBanner, setEditingBanner] = useState<SliderBanner | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [permanentDeleteConfirm, setPermanentDeleteConfirm] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string; type: 'IMAGE' | 'VIDEO' } | null>(null)
@@ -256,8 +279,12 @@ export default function SliderBannersPage() {
   // Fetch banners
   const fetchBanners = async () => {
     try {
-      const response = await fetch('/api/banners?admin=true', {
-        credentials: 'include'
+      const response = await fetch(`/api/banners?admin=true&t=${Date.now()}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       })
       if (response.ok) {
         const data = await response.json()
@@ -355,6 +382,29 @@ export default function SliderBannersPage() {
     } catch (error) {
       console.error('Error activating banner:', error)
       showToast('Error activating banner. Please try again.', 'error')
+    }
+  }
+
+  const handlePermanentDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/banners/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        setBanners(banners.filter(banner => banner.id !== id))
+        setPermanentDeleteConfirm(null)
+        showToast('Banner permanently deleted!', 'success')
+      } else {
+        const result = await response.json()
+        showToast(`Failed to delete banner: ${result.error}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error deleting banner:', error)
+      showToast('Error deleting banner. Please try again.', 'error')
     }
   }
 
@@ -612,6 +662,7 @@ export default function SliderBannersPage() {
                             onToggleActive={toggleActive}
                             onEdit={setEditingBanner}
                             onActivate={handleActivate}
+                            onPermanentDelete={setPermanentDeleteConfirm}
                             onPreview={(url, title, type) => setPreviewImage({ url, title, type })}
                           />
                         ))}
@@ -624,15 +675,15 @@ export default function SliderBannersPage() {
           </div>
         </div>
 
-        {/* Delete Confirmation Modal */}
+        {/* Deactivate Confirmation Modal */}
         {deleteConfirm && mounted && createPortal(
           <div className="fixed inset-0 bg-black bg-opacity-50 h-screen w-screen z-[9999] flex items-center justify-center p-4">
             <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 ease-out">
               {/* Header */}
               <div className="px-6 pt-6 pb-4 border-b border-gray-200">
                 <div className="flex items-center justify-center">
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <Trash2 className="h-6 w-6 text-red-600" />
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <XCircle className="h-6 w-6 text-orange-600" />
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 text-center mt-4 mb-2">
@@ -654,9 +705,49 @@ export default function SliderBannersPage() {
                 </button>
                 <button
                   onClick={() => handleDelete(deleteConfirm)}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
                 >
                   Deactivate
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Permanent Delete Confirmation Modal */}
+        {permanentDeleteConfirm && mounted && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-75 h-screen w-screen z-[10000] flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full mx-auto transform transition-all duration-300 ease-out">
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <Trash2 className="h-8 w-8 text-red-600" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 text-center mt-4 mb-2">
+                  ⚠️ PERMANENT DELETE
+                </h3>
+                <p className="text-sm text-gray-600 text-center leading-relaxed mb-4">
+                  <strong>This action cannot be undone!</strong> The banner will be permanently removed from the database.
+                </p>
+            
+              </div>
+              
+              {/* Actions */}
+              <div className="px-6 py-4 bg-gray-50 rounded-b-xl flex space-x-3">
+                <button
+                  onClick={() => setPermanentDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handlePermanentDelete(permanentDeleteConfirm)}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  Delete Permanently
                 </button>
               </div>
             </div>

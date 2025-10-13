@@ -24,9 +24,11 @@ export default function RbdLogo({
         width={isBanner ? 200 : 250}
         height={isBanner ? 80 : 60}
         priority={priority}
-        className="object-contain"
         quality={100}
+        className="object-contain"
+        style={{ height: 'auto', width: 'auto' }} // ✅ prevents warning
       />
+
     </div>
   )
 }

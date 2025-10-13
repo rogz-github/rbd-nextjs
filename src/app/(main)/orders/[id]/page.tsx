@@ -17,6 +17,7 @@ interface OrderItem {
     price: number
     images: string[]
     description: string
+    slug?: string
   }
 }
 
@@ -110,6 +111,8 @@ export default function OrderDetailPage() {
       if (response.ok && data.success) {
         console.log('Frontend - Order data:', data.order)
         console.log('Frontend - Order items:', data.order.orderItems)
+        console.log('Frontend - Shipping address:', data.order.shippingAddress)
+        console.log('Frontend - Billing address:', data.order.billingAddress)
         
         if (data.order.orderItems && data.order.orderItems.length > 0) {
           data.order.orderItems.forEach((item: any, index: number) => {
@@ -246,31 +249,37 @@ export default function OrderDetailPage() {
                     })
                     
                     return (
-                      <div key={item.id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                          {item.product.images && item.product.images.length > 0 ? (
-                            <Image 
-                              src={item.product.images[0]} 
-                              alt={item.product.name}
-                              width={64}
-                              height={64}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            <Package className="w-8 h-8 text-gray-400" />
-                          )}
+                      <Link 
+                        key={item.id} 
+                        href={`/products/${item.product.slug || item.product.id}`}
+                        className="block"
+                      >
+                        <div className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:border-pink-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
+                          <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-pink-50 transition-colors">
+                            {item.product.images && item.product.images.length > 0 ? (
+                              <Image 
+                                src={item.product.images[0]} 
+                                alt={item.product.name}
+                                width={64}
+                                height={64}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Package className="w-8 h-8 text-gray-400 group-hover:text-pink-500 transition-colors" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900 group-hover:text-pink-600 transition-colors">{item.product.name}</h3>
+                            <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                            <p className="text-sm text-gray-600">${Number(item.price).toFixed(2)} each</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-gray-900">
+                              ${Number(item.price * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{item.product.name}</h3>
-                          <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                          <p className="text-sm text-gray-600">${Number(item.price).toFixed(2)} each</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">
-                            ${Number(item.price * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
+                      </Link>
                     )
                   })}
                 </div>
@@ -289,10 +298,6 @@ export default function OrderDetailPage() {
                     <span className="text-gray-900">
                       {(order.shipping || order.coShipping || 0) === 0 ? 'Free' : `$${Number(order.shipping || order.coShipping || 0).toFixed(2)}`}
                     </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="text-gray-900">${Number(order.tax || order.coTax || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3">
                     <span className="text-gray-900">Total</span>
@@ -332,20 +337,29 @@ export default function OrderDetailPage() {
                   Shipping Address
                 </h2>
                 <div className="text-sm text-gray-600">
-                  <p className="font-medium text-gray-900">
-                    {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-                  </p>
-                  <p>{order.shippingAddress.address || order.shippingAddress.address1}</p>
-                  {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode || order.shippingAddress.zip}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                  {order.shippingAddress.phone && (
-                    <p className="mt-2 flex items-center">
-                      <Phone className="w-4 h-4 mr-1" />
-                      {order.shippingAddress.phone}
-                    </p>
+                  {order.shippingAddress && (order.shippingAddress.firstName || order.shippingAddress.lastName) ? (
+                    <>
+                      <p className="font-medium text-gray-900">
+                        {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+                      </p>
+                      <p>{order.shippingAddress.address1 || order.shippingAddress.address}</p>
+                      {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
+                      <p>
+                        {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode || order.shippingAddress.zip}
+                      </p>
+                      <p>{order.shippingAddress.country}</p>
+                      {order.shippingAddress.phone && (
+                        <p className="mt-2 flex items-center">
+                          <Phone className="w-4 h-4 mr-1" />
+                          {order.shippingAddress.phone}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 italic">Shipping address not available</p>
+                      <p className="text-xs text-gray-400 mt-1">Debug: {JSON.stringify(order.shippingAddress)}</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -358,14 +372,27 @@ export default function OrderDetailPage() {
                 </h2>
                 <div className="text-sm text-gray-600">
                   {(() => {
+                    // Check if we have valid billing address data
+                    const hasBillingAddress = order.billingAddress && (order.billingAddress.firstName || order.billingAddress.lastName);
+                    const hasShippingAddress = order.shippingAddress && (order.shippingAddress.firstName || order.shippingAddress.lastName);
+                    
+                    if (!hasBillingAddress) {
+                      return (
+                        <div className="text-center py-4">
+                          <p className="text-gray-500 italic">Billing address not available</p>
+                          <p className="text-xs text-gray-400 mt-1">Debug: {JSON.stringify(order.billingAddress)}</p>
+                        </div>
+                      );
+                    }
+                    
                     // Check if billing address is the same as shipping address
-                    const isSameAddress = 
+                    const isSameAddress = hasShippingAddress && 
                       order.billingAddress.firstName === order.shippingAddress.firstName &&
                       order.billingAddress.lastName === order.shippingAddress.lastName &&
-                      (order.billingAddress.address || order.billingAddress.address1) === (order.shippingAddress.address || order.shippingAddress.address1) &&
+                      (order.billingAddress.address1 || order.billingAddress.address) === (order.shippingAddress.address1 || order.shippingAddress.address) &&
                       order.billingAddress.city === order.shippingAddress.city &&
                       order.billingAddress.state === order.shippingAddress.state &&
-                      (order.billingAddress.zipCode || order.billingAddress.zip) === (order.shippingAddress.zipCode || order.shippingAddress.zip) &&
+                      (order.billingAddress.zip || order.billingAddress.zipCode) === (order.shippingAddress.zip || order.shippingAddress.zipCode) &&
                       order.billingAddress.country === order.shippingAddress.country;
 
                     if (isSameAddress) {
@@ -381,7 +408,7 @@ export default function OrderDetailPage() {
                         <p className="font-medium text-gray-900">
                           {order.billingAddress.firstName} {order.billingAddress.lastName}
                         </p>
-                        <p>{order.billingAddress.address || order.billingAddress.address1}</p>
+                        <p>{order.billingAddress.address1 || order.billingAddress.address}</p>
                         {order.billingAddress.address2 && <p>{order.billingAddress.address2}</p>}
                         <p>
                           {order.billingAddress.city}, {order.billingAddress.state} {order.billingAddress.zipCode || order.billingAddress.zip}

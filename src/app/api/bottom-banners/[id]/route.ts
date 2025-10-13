@@ -25,7 +25,14 @@ export async function PATCH(
       }
     })
 
-    return NextResponse.json(updatedBanner)
+    const response = NextResponse.json(updatedBanner)
+    
+    // Add cache invalidation headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('Error updating banner status:', error)
     return NextResponse.json(
@@ -48,7 +55,14 @@ export async function DELETE(
       }
     })
 
-    return NextResponse.json({ success: true })
+    const response = NextResponse.json({ success: true })
+    
+    // Add cache invalidation headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('Error deleting banner:', error)
     return NextResponse.json(

@@ -83,10 +83,17 @@ export async function PUT(request: NextRequest) {
     })
     console.log('Verification - cart item after update:', verifyItem)
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Cart item updated successfully'
     })
+
+    // Add cache-busting headers to prevent caching
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
   } catch (error) {
     console.error('Error updating cart item:', error)
     return NextResponse.json(

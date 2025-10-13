@@ -109,17 +109,21 @@ export async function GET(request: NextRequest) {
         }
       })
 
-    const response = {
+    const response = NextResponse.json({
       success: true,
       cartItems: itemsWithTotals,
       subtotal: subtotal,
       itemCount: cartItemsWithProducts.length,
       userType,
       userId
-    }
+    })
 
-    
-    return NextResponse.json(response)
+    // Add cache-busting headers to prevent caching of cart data
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
   } catch (error) {
     console.error('Error fetching cart items:', error)
     return NextResponse.json(

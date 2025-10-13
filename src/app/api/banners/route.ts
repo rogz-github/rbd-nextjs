@@ -125,8 +125,10 @@ export async function GET(request: NextRequest) {
         data: banners 
       })
       
-      // Add caching headers for admin view (shorter cache)
-      response.headers.set('Cache-Control', 'private, max-age=60, s-maxage=60')
+      // Disable caching for admin view to ensure fresh data
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
       
       return response
     }

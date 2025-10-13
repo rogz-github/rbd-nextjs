@@ -29,7 +29,10 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   }, [])
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/~admin' })
+    await signOut({ 
+      callbackUrl: '/auth/signin',
+      redirect: true 
+    })
   }
 
   // Show loading state until component is mounted to prevent hydration issues

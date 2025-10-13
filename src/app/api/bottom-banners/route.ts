@@ -18,10 +18,17 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: bannerImages
     })
+    
+    // Disable caching for admin view to ensure fresh data
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('Error fetching bottom banner images:', error)
     return NextResponse.json(
@@ -93,11 +100,18 @@ export async function POST(request: NextRequest) {
 
     console.log('Banner image created successfully:', bannerImage)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: bannerImage,
       message: 'Bottom banner image created successfully'
     })
+    
+    // Add cache invalidation headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
     console.error('Error creating bottom banner image:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
