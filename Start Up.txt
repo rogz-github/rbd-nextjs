@@ -1,7 +1,7 @@
 Postgresql database superuser password : postgresql
 port : 5432
 ENCRYPTION_KEY="57f88d605c093449c500a03dd962c02c7134254c9461106334aac70b1d00f19cb6996b08461b089c88f2887af79f2c5b971c6e3f8ae57cb3c269a82a166650ad35fe5583736449d7"
-
+NEXTAUTH_SECRET = "uYx8i9LwG4ZJt7rE0qP2sH5dQ1nBvKcM"
 
 PRISMA INSTALLATION THEN REN
  - pm install prisma @prisma/client

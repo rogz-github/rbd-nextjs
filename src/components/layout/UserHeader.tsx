@@ -453,7 +453,7 @@ export function UserHeader() {
                   <div className="flex flex-col items-center space-y-1 text-gray-700 hover:text-pink-500 transition-colors cursor-pointer">
                     <User className="w-6 h-6" />
                     <span className="text-sm font-medium">
-                      {status === 'loading' ? 'Loading...' : session ? 'My Account' : 'Login'}
+                      {status === 'loading' ? '.........' : session ? 'My Account' : 'Login'}
                     </span>
               
                   </div>
@@ -718,7 +718,7 @@ export function UserHeader() {
                   <nav className="space-y-2">
                     {status === 'loading' ? (
                       <div className="px-2 py-3 text-sm text-gray-500 text-center">
-                        Loading...
+                        Account
                       </div>
                     ) : session ? (
                       <>
