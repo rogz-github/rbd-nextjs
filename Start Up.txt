@@ -20,13 +20,30 @@ PRISMA INSTALLATION THEN REN
  - ssh -T git@github-rogz-github
  - ssh -T git@github-rogzgithub2024
 
- make sure in PowertShell Administrator
+make sure in PowertShell Administrator
 
- npx prisma migrate deploy => to deploy migration to neon
- npx prisma db seed => to generate dummy products
- npx prisma studio => to run the prisma database
+npx prisma migrate deploy => to deploy migration to neon
+npx prisma db seed => to generate dummy products
+npx prisma studio => to run the prisma database
+node scripts/create-users.js => to create admin, super_admin, and user accounts
  
+ACCOUNTS LOGIN CREDENTIALS
+=========================================
+SUPER_ADMIN:
+  Email: super_admin@gmail.com
+  Username: super_admin
+  Password: Rbd@2k25
 
+ADMIN:
+  Email: admin@gmail.com
+  Username: rbd_admin
+  Password: @Rbd../2k23
+
+USER (Rogz):
+  Email: rogz.nunez2013@gmail.com
+  Username: rogz
+  Password: rogz
+=========================================
 
 == PUSH NEW CHANGES FROM LOCAL  TO GITHUB
 git add .
@@ -37,3 +54,7 @@ git push origin main
 
 GENERATOR
 npm run import:products => import product from doba csv file in the csv_file directory
+
+rbd-nextjs-5fn3.vercel.app
+
+
