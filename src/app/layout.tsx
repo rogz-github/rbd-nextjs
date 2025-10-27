@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import CustomCodeWrapper from '@/components/CustomCodeWrapper'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -29,6 +30,7 @@ export default function RootLayout({
           {children}
         </Providers>
         <CustomCodeWrapper location="body" />
+        <SpeedInsights dsn="dThIHbvm897Y2YXpBKDMvqCST24" />
       </body>
     </html>
   )
