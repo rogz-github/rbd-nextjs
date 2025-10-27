@@ -3,6 +3,11 @@ const nextConfig = {
   // Basic configuration for Next.js 13
   reactStrictMode: true,
   
+  // Enable experimental features for better performance
+  experimental: {
+    optimizePackageImports: ['lucide-react'], // Optimize icon imports
+  },
+  
   // Webpack configuration to fix module resolution issues
   webpack: (config, { isServer }) => {
     if (!isServer) {

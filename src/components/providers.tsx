@@ -7,7 +7,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider 
       refetchInterval={0}
-      refetchOnWindowFocus={true}
+      refetchOnWindowFocus={false} // Disable to improve performance
+      refetchWhenOffline={false}
     >
       <CartProvider>
         {children}

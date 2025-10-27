@@ -133,4 +133,32 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.18);
   }
+
+  /* Swiper Custom Styles */
+  .sale-items-swiper {
+    @apply overflow-hidden;
+  }
+
+  .sale-items-swiper .swiper-slide {
+    @apply h-auto;
+  }
+
+  .sale-items-swiper .swiper-button-next-sale,
+  .sale-items-swiper .swiper-button-prev-sale {
+    @apply opacity-0 transition-opacity duration-300;
+  }
+
+  .sale-items-swiper:hover .swiper-button-next-sale,
+  .sale-items-swiper:hover .swiper-button-prev-sale {
+    @apply opacity-100;
+  }
+
+
+  /* Line clamp utility for product names */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

@@ -11,7 +11,8 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node prisma/seed.ts"
+    "db:seed": "ts-node prisma/seed.ts",
+    "import:products": "node scripts/import-products.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -27,6 +28,8 @@
     "@types/js-cookie": "^3.0.6",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.0.0",
+    "csv-parser": "^3.2.0",
+    "isomorphic-dompurify": "^2.30.0",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.294.0",
@@ -38,6 +41,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.48.2",
     "react-hot-toast": "^2.4.1",
+    "swiper": "^12.0.2",
     "tailwind-merge": "^2.2.0",
     "zod": "^3.22.4",
     "zustand": "^4.4.7"

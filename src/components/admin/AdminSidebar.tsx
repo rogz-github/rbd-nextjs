@@ -35,73 +35,40 @@ import {
   Eye
 } from 'lucide-react'
 import RbdLogo from '@/components/RbdLogo'
+import { ADMIN_ROUTES } from '@/config/admin-routes'
 
-const menuItems = [
-  {
-    title: 'Dashboard',
-    href: '/~admin/dashboard',
-    icon: PieChart,
-    active: true
-  }
-]
+// Icon mapping for dynamic rendering
+const iconMap: Record<string, any> = {
+  Plus,
+  List,
+  Percent,
+  Tag,
+  Image,
+  Grid3X3,
+  Star,
+  Package,
+  Eye,
+  PieChart,
+  Settings
+}
 
-// This will be moved inside the component to be dynamic
+// Convert routes to sidebar format
+const menuItems = ADMIN_ROUTES.menuItems.map(item => ({
+  ...item,
+  icon: iconMap[item.icon || 'PieChart'] || PieChart
+}))
 
-const productItems = [
-  {
-    title: 'Add Product',
-    href: '/~admin/products/add',
-    icon: Plus
-  },
-  {
-    title: 'All Products',
-    href: '/~admin/products',
-    icon: List
-  },
-  {
-    title: 'Sale Products',
-    href: '/~admin/products/sale',
-    icon: Percent
-  },
-  {
-    title: 'Coupons',
-    href: '/~admin/coupons',
-    icon: Tag
-  }
-]
+const productItems = ADMIN_ROUTES.productItems.map(item => ({
+  ...item,
+  icon: iconMap[item.icon || 'List'] || List
+}))
 
-const pageItems = [
-  {
-    title: 'Slider Banner',
-    href: '/~admin/slider-banners',
-    icon: Image
-  },
-  {
-    title: 'Bottom Banner',
-    href: '/~admin/bottom-banner',
-    icon: Grid3X3
-  },
-  {
-    title: '3 Images',
-    href: '/~admin/pages/home/three-images',
-    icon: Grid3X3
-  },
-  {
-    title: 'Best Deal Available',
-    href: '/~admin/pages/home/best-deal',
-    icon: Star
-  },
-  {
-    title: 'Displayed Products',
-    href: '/~admin/pages/home/displayed-products',
-    icon: Package
-  },
-  {
-    title: 'Displayed Images',
-    href: '/~admin/pages/home/displayed-images',
-    icon: Eye
-  }
-]
+const categoryItems = ADMIN_ROUTES.categoryItems
+
+const pageItems = ADMIN_ROUTES.pageItems.map(item => ({
+  ...item,
+  icon: iconMap[item.icon || 'Image'] || Image
+}))
 
 interface AdminSidebarProps {
   isMobileOpen: boolean
@@ -112,7 +79,8 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isCheckoutsOpen, setIsCheckoutsOpen] = useState(true)
   const [isProductsOpen, setIsProductsOpen] = useState(false)
-  const [isPagesOpen, setIsPagesOpen] = useState(true)
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false)
+  const [isPagesOpen, setIsPagesOpen] = useState(false)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -124,7 +92,7 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
     setMounted(true)
   }, [])
 
-  // Fetch pending orders count
+  // Fetch pending orders count (debounced)
   const fetchOrdersCount = async () => {
     if (!session?.user?.isAdmin) {
       setLoading(false)
@@ -132,7 +100,10 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
     }
 
     try {
-      const response = await fetch('/api/admin/orders/count?status=Pending')
+      const response = await fetch('/api/admin/orders/count?status=Pending', {
+        cache: 'no-store',
+        next: { revalidate: 60 } // Cache for 60 seconds
+      })
       if (response.ok) {
         const data = await response.json()
         setPendingOrdersCount(data.pending || 0)
@@ -146,32 +117,26 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
 
   useEffect(() => {
     fetchOrdersCount()
-  }, [session])
+  }, [session?.user?.isAdmin]) // Only re-run when admin status changes
 
-  // Refresh orders count every 30 seconds
+  // Refresh orders count every 60 seconds (reduced frequency)
   useEffect(() => {
     if (!session?.user?.isAdmin) return
 
     const interval = setInterval(() => {
       fetchOrdersCount()
-    }, 30000) // 30 seconds
+    }, 60000) // 60 seconds - reduced frequency to improve performance
 
     return () => clearInterval(interval)
-  }, [session])
+  }, [session?.user?.isAdmin])
 
-  // Dynamic checkout items with real count
-  const checkoutItems = [
-    {
-      title: 'Orders',
-      href: '/~admin/orders',
-      badge: loading ? '...' : pendingOrdersCount.toString(),
-      badgeColor: pendingOrdersCount > 0 ? 'bg-yellow-500' : 'bg-gray-400'
-    },
-    {
-      title: 'Abandoned Checkout',
-      href: '/~admin/abandoned-checkout'
-    }
-  ]
+  // Dynamic checkout items with real count - built from config with runtime badge
+  const checkoutItems = ADMIN_ROUTES.checkoutItems.map((item, index) => ({
+    title: item.title,
+    href: item.href,
+    badge: index === 0 ? (loading ? '...' : pendingOrdersCount.toString()) : undefined,
+    badgeColor: index === 0 ? (pendingOrdersCount > 0 ? 'bg-yellow-500' : 'bg-gray-400') : (item.badgeColor || 'bg-gray-400')
+  }))
 
 
 
@@ -262,6 +227,7 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                 isActive
                   ? 'bg-blue-600 text-white'
@@ -311,6 +277,7 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
                       <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={true}
                         className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group ${
                           isActive
                             ? 'bg-blue-600 text-white'
@@ -332,7 +299,7 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
           </div>
         )}
 
-        {/* PRODUCTS Section */}
+        {/* CATEGORIES Section */}
         {!isCollapsed && (
           <div className="mt-6">
             <div className="px-3 py-2">
@@ -343,6 +310,44 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
             
             {/* Products Dropdown */}
             <div className="space-y-1">
+            <button
+                onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group bg-gray-800 text-white hover:bg-gray-700"
+              >
+                <div className="flex items-center space-x-3">
+                  <List className="w-5 h-5 text-gray-300" />
+                  <span className="font-medium">Categories</span>
+                </div>
+                {isCategoriesOpen ? (
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+              
+              {/* Dropdown Items */}
+              {isCategoriesOpen && (
+                <div className="ml-8 space-y-1">
+                  {categoryItems.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        prefetch={true}
+                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+                          isActive
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+              
               <button
                 onClick={() => setIsProductsOpen(!isProductsOpen)}
                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group bg-gray-800 text-white hover:bg-gray-700"
@@ -368,13 +373,13 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
                       <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={true}
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
                           isActive
                             ? 'bg-blue-600 text-white'
                             : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
                         <span className="text-sm">{item.title}</span>
                       </Link>
                     )
@@ -421,13 +426,13 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
                       <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={true}
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
                           isActive
                             ? 'bg-blue-600 text-white'
                             : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                         }`}
                       >
-                        <Icon className="w-4 h-4" />
                         <span className="text-sm">{item.title}</span>
                       </Link>
                     )
@@ -440,15 +445,21 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps)
       </nav>
 
         {/* Sidebar Footer */}
-        {!isCollapsed && (
+        {!isCollapsed && session?.user && (
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-300">JD</span>
+                <span className="text-sm font-medium text-gray-300">
+                  {session.user.firstName?.[0] || ''}{session.user.lastName?.[0] || ''}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">John Doe</p>
-                <p className="text-xs text-gray-400 truncate">Admin</p>
+                <p className="text-sm font-medium text-white truncate">
+                  {session.user.firstName} {session.user.lastName}
+                </p>
+                <p className="text-xs text-gray-400 truncate">
+                  {session.user.isSuperAdmin ? 'Super Admin' : session.user.isAdmin ? 'Admin' : 'User'}
+                </p>
               </div>
             </div>
           </div>

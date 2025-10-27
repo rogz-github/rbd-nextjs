@@ -1,12 +1,18 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { prisma } from '@/lib/prisma'
 import Image from 'next/image'
 import Link from 'next/link'
 import { sanitizeImageUrl } from '@/lib/image-utils'
 import { calculatePricing, formatPrice } from '@/lib/pricing'
+
+interface Category {
+  id: number
+  name: string
+  slug: string
+  children?: Category[]
+}
 
 interface Product {
   id: string
@@ -21,35 +27,108 @@ interface Product {
   category1: string
 }
 
+function isValidCategoryPath(slugs: string[], categories: Category[]): boolean {
+  if (slugs.length === 0) return false
+  
+  for (const cat of categories) {
+    if (cat.slug === slugs[0]) {
+      if (slugs.length === 1) return true
+      
+      if (cat.children) {
+        let currentLevel = cat.children
+        for (let i = 1; i < slugs.length; i++) {
+          const found = currentLevel.find(c => c.slug === slugs[i])
+          if (!found) return false
+          
+          if (i === slugs.length - 1) return true
+          currentLevel = found.children || []
+        }
+      }
+    }
+  }
+  
+  return false
+}
+
 export default function CategoryPage() {
   const params = useParams()
+  const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [categoryName, setCategoryName] = useState('')
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ name: string; path: string }>>([])
+  const [isValidCategory, setIsValidCategory] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
-    if (params.slug) {
-      const categorySlug = Array.isArray(params.slug) ? params.slug[0] : params.slug
-      const formattedCategory = categorySlug
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ')
-      
-      setCategoryName(formattedCategory)
-      
-      // For now, we'll show a placeholder since we don't have the API set up
-      setProducts([])
-      setLoading(false)
+    const loadCategories = async () => {
+      try {
+        const response = await fetch('/categories.json')
+        const data = await response.json()
+        setCategories(data)
+        
+        if (params.slug) {
+          // Handle both single slug and array of slugs
+          const slugString = Array.isArray(params.slug) ? params.slug.join('/') : params.slug
+          const slugArray = slugString.split('/')
+          
+          // Validate the path
+          const isValid = isValidCategoryPath(slugArray, data)
+          
+          if (!isValid) {
+            router.push('/')
+            return
+          }
+          
+          setIsValidCategory(true)
+          
+          // Get the last slug
+          const currentSlug = slugArray[slugArray.length - 1]
+          const formattedCategory = currentSlug
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ')
+          
+          setCategoryName(formattedCategory)
+          
+          // Build breadcrumbs
+          const crumbs: Array<{ name: string; path: string }> = []
+          let currentPath = ''
+          
+          slugArray.forEach((slug, index) => {
+            currentPath += (currentPath ? '/' : '') + slug
+            const formattedName = slug
+              .split('-')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ')
+            crumbs.push({ name: formattedName, path: `/category/${currentPath}` })
+          })
+          
+          setBreadcrumbs(crumbs)
+          
+          setProducts([])
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error)
+        router.push('/')
+      }
     }
-  }, [params.slug])
+    
+    loadCategories()
+  }, [params.slug, router])
 
-  if (loading) {
+  if (!isValidCategory && !loading) {
+    return null
+  }
+
+  if (loading || !isValidCategory) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pink-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading products...</p>
+            <p className="mt-4 text-gray-600">Loading category...</p>
           </div>
         </div>
       </div>
@@ -59,9 +138,31 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container py-8">
+        {/* Breadcrumbs */}
+        {breadcrumbs.length > 1 && (
+          <div className="mb-6 text-sm">
+            <Link href="/" className="text-pink-600 hover:text-pink-700">
+              Home
+            </Link>
+            {breadcrumbs.map((crumb, index) => (
+              <span key={index}>
+                <span className="mx-2 text-gray-400">/</span>
+                {index === breadcrumbs.length - 1 ? (
+                  <span className="text-gray-700">{crumb.name}</span>
+                ) : (
+                  <Link href={crumb.path} className="text-pink-600 hover:text-pink-700">
+                    {crumb.name}
+                  </Link>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Category Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {categoryName} Products
+            {categoryName}
           </h1>
           <p className="text-gray-600">
             Discover our collection of {categoryName.toLowerCase()} products

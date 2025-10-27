@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
+import { SaleItemsSlider } from '../ui/SaleItemsSlider'
 
 interface BannerBottomImage {
   id: number
@@ -16,7 +17,6 @@ interface BannerBottomImage {
 export function ImageColumns() {
   const [banners, setBanners] = useState<BannerBottomImage[]>([])
   const [loading, setLoading] = useState(true)
-  const sliderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -50,25 +50,21 @@ export function ImageColumns() {
       fetchBanners()
     }
 
+    // Handle window resize
+    const handleResize = () => {
+      // Resize handling is now managed by ProductSlider component
+    }
+
     window.addEventListener('bannerUpdated', handleRefresh)
+    window.addEventListener('resize', handleResize)
 
     return () => {
       clearInterval(interval)
       window.removeEventListener('bannerUpdated', handleRefresh)
+      window.removeEventListener('resize', handleResize)
     }
   }, [])
 
-  // Debug slider ref
-  useEffect(() => {
-    if (sliderRef.current) {
-      console.log('Slider ref set:', sliderRef.current)
-      console.log('Slider dimensions:', {
-        scrollWidth: sliderRef.current.scrollWidth,
-        clientWidth: sliderRef.current.clientWidth,
-        scrollLeft: sliderRef.current.scrollLeft
-      })
-    }
-  }, [banners]) // Trigger when banners are loaded
 
   const PromoBanner = ({ banner }: { banner: BannerBottomImage }) => (
     <Link href={banner.linkUrl || '#'} className="block">
@@ -86,31 +82,91 @@ export function ImageColumns() {
     </Link>
   )
 
-  const scrollSlider = (direction: 'left' | 'right') => {
-    if (sliderRef.current) {
-      const cardWidth = 250 // min-w-[250px]
-      const gap = 16 // gap-4 = 16px
-      const scrollAmount = cardWidth + gap
-      const currentScroll = sliderRef.current.scrollLeft
-      const maxScroll = sliderRef.current.scrollWidth - sliderRef.current.clientWidth
-      
-      let targetScroll
-      if (direction === 'left') {
-        targetScroll = Math.max(0, currentScroll - scrollAmount)
-      } else {
-        targetScroll = Math.min(maxScroll, currentScroll + scrollAmount)
-      }
-      
-      console.log('Scrolling:', { direction, currentScroll, targetScroll, scrollAmount, maxScroll })
-      
-      sliderRef.current.scrollTo({
-        left: targetScroll,
-        behavior: 'smooth'
-      })
-    } else {
-      console.log('Slider ref not available')
+  // Product cards data
+  const productCards = [
+    {
+      id: 1,
+      name: "Ergonomic Gaming Chair",
+      price: 199.99,
+      originalPrice: 249.99,
+      discount: 50.00,
+      image: "gaming-chair"
+    },
+    {
+      id: 2,
+      name: "Minnesota Wild Logo Panel",
+      price: 157.57,
+      originalPrice: 179.85,
+      discount: 22.28,
+      image: "minnesota-wild"
+    },
+    {
+      id: 3,
+      name: "Mini Kawaii Popular Cat Baby Night Lamp",
+      price: 23.25,
+      originalPrice: 24.47,
+      discount: 1.22,
+      image: "cat-lamp"
+    },
+    {
+      id: 4,
+      name: "LEVEL UP! UNISEX CLASSIC BASEBALL TEE",
+      price: 30.81,
+      originalPrice: 41.31,
+      discount: 10.50,
+      image: "baseball-tee"
+    },
+    {
+      id: 5,
+      name: "Houses in Acoma Pueblo - Mexico",
+      price: 86.43,
+      originalPrice: 94.86,
+      discount: 8.43,
+      image: "acoma-pueblo"
+    },
+    {
+      id: 6,
+      name: "Wireless Bluetooth Headphones",
+      price: 64.80,
+      originalPrice: 80.00,
+      discount: 15.20,
+      image: "headphones"
+    },
+    {
+      id: 7,
+      name: "Smart Fitness Watch",
+      price: 125.00,
+      originalPrice: 150.00,
+      discount: 25.00,
+      image: "smart-watch"
+    },
+    {
+      id: 8,
+      name: "Automatic Coffee Maker",
+      price: 37.50,
+      originalPrice: 50.00,
+      discount: 12.50,
+      image: "coffee-maker"
+    },
+    {
+      id: 9,
+      name: "Premium Yoga Mat",
+      price: 22.00,
+      originalPrice: 30.00,
+      discount: 8.00,
+      image: "yoga-mat"
+    },
+    {
+      id: 10,
+      name: "Wireless Earbuds",
+      price: 38.00,
+      originalPrice: 50.00,
+      discount: 12.00,
+      image: "earbuds"
     }
-  }
+  ]
+
+
 
   if (loading) {
     return (
@@ -385,7 +441,7 @@ export function ImageColumns() {
         
         {/* Product Slider Section */}
         <div className="mt-20">
-          <div className="flex items-center gap-6 mb-8">
+          <div className="flex items-start gap-6 mb-8">
             {/* ON SALE ITEMS Banner */}
             <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl p-8 text-white min-w-[300px] relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-pink-400/20 to-purple-500/20"></div>
@@ -397,181 +453,9 @@ export function ImageColumns() {
               </div>
             </div>
             
-            {/* Product Slider */}
-            <div className="flex-1 relative">
-              <div 
-                ref={sliderRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide pb-4"
-              >
-                {/* Product Card 1 - Minnesota Wild Logo Panel */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $22.28 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-32 h-32 bg-gray-800 rounded flex items-center justify-center">
-                        <div className="text-white text-xs text-center">
-                          <div className="w-20 h-20 bg-green-500 rounded mb-2"></div>
-                          <div className="text-xs">Minnesota Wild</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$157.57</span>
-                      <span className="text-gray-500 line-through text-sm">$179.85</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">Minnesota Wild Logo Panel</h4>
-                  </div>
-                </div>
-                
-                {/* Product Card 2 - Mini Kawaii Cat Night Lamp */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $1.22 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-20 h-24 bg-yellow-400 rounded-full relative">
-                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-black rounded-full"></div>
-                        <div className="absolute top-2 right-1/2 transform translate-x-1/2 w-1 h-1 bg-black rounded-full"></div>
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-black rounded-full"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$23.25</span>
-                      <span className="text-gray-500 line-through text-sm">$24.47</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">Mini Kawaii Popular Cat Baby Night Lamp</h4>
-                  </div>
-                </div>
-                
-                {/* Product Card 3 - LEVEL UP Baseball Tee */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $10.50 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-24 h-32 bg-white border-2 border-gray-300 rounded relative">
-                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-blue-500 rounded"></div>
-                        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-white text-xs font-bold">LEVEL UP!</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$30.81</span>
-                      <span className="text-gray-500 line-through text-sm">$41.31</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">LEVEL UP! UNISEX CLASSIC BASEBALL TEE</h4>
-                  </div>
-                </div>
-                
-                {/* Product Card 4 - Houses in Acoma Pueblo */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $8.43 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-24 h-20 bg-gray-800 rounded relative">
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gray-600 rounded-b"></div>
-                        <div className="absolute top-2 left-2 w-4 h-4 bg-gray-400 rounded"></div>
-                        <div className="absolute top-2 right-2 w-4 h-4 bg-gray-400 rounded"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$86.43</span>
-                      <span className="text-gray-500 line-through text-sm">$94.86</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">Houses in Acoma Pueblo - Mexico</h4>
-                  </div>
-                </div>
-                
-                {/* Product Card 5 - HIRITU Shampoo */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $1.63 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-12 h-20 bg-gradient-to-b from-pink-200 to-pink-400 rounded-full relative">
-                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-pink-600 rounded-full"></div>
-                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-3 h-1 bg-pink-600 rounded"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$40.45</span>
-                      <span className="text-gray-500 line-through text-sm">$42.08</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">HIRITU - Balance Repair Shampoo Moist</h4>
-                  </div>
-                </div>
-                
-                {/* Product Card 6 - FIND YOUR OWN */}
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow min-w-[250px] flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      Free Shipping
-                    </div>
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                      $10.60 off
-                    </div>
-                    <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                      <div className="w-20 h-24 bg-purple-600 rounded"></div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-500 font-bold text-lg">$48.70</span>
-                      <span className="text-gray-500 line-through text-sm">$59.30</span>
-                    </div>
-                    <h4 className="text-sm font-medium text-gray-800">FIND YOUR OWN</h4>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Navigation Arrows */}
-              <button 
-                onClick={() => scrollSlider('left')}
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4 bg-pink-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors z-10"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button 
-                onClick={() => scrollSlider('right')}
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4 bg-pink-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors z-10"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+            {/* Product Slider - Show all items with Swiper */}
+            <div className="flex-1 relative max-w-4xl">
+              <SaleItemsSlider products={productCards} />
             </div>
           </div>
         </div>

@@ -7,6 +7,20 @@ import { useCart } from '@/context/cart-context'
 import { Search, ShoppingCart, User, Heart, Car, Menu, X, Facebook, Twitter, Instagram, LogOut } from 'lucide-react'
 import RbdLogo from '@/components/RbdLogo'
 import { toast } from 'react-hot-toast'
+import { getCategoryHierarchicalPath } from '@/lib/category-utils'
+
+interface Category {
+  id: number
+  name: string
+  slug: string
+  image: string
+  position: number
+  totalProducts: number
+  seoTitle: string
+  seoDesc: string
+  children?: Category[]
+  visible?: boolean
+}
 
 export function UserHeader() {
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false)
@@ -16,8 +30,28 @@ export function UserHeader() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [accountDropdownTimeout, setAccountDropdownTimeout] = useState<NodeJS.Timeout | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
   const { data: session, status } = useSession()
   const { state, clearCart } = useCart()
+
+  // Load categories from JSON file (only once, with caching)
+  useEffect(() => {
+    const loadCategories = async () => {
+      // Check if categories are already loaded
+      if (categories.length > 0) return
+      
+      try {
+        const response = await fetch('/categories.json', {
+          cache: 'force-cache' // Cache categories data
+        })
+        const data = await response.json()
+        setCategories(data)
+      } catch (error) {
+        console.error('Failed to load categories:', error)
+      }
+    }
+    loadCategories()
+  }, []) // Only run once on mount
 
   // Logout handler
   const handleLogout = async () => {
@@ -47,13 +81,7 @@ export function UserHeader() {
     }
   }
 
-  // Force session refresh on component mount
-  useEffect(() => {
-    const refreshSession = async () => {
-      await getSession()
-    }
-    refreshSession()
-  }, [])
+  // Remove unnecessary session refresh - session is already managed by SessionProvider
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -64,337 +92,32 @@ export function UserHeader() {
     }
   }, [accountDropdownTimeout])
 
-  const categories = [
-    'HOME, GARDEN & TOOLS',
-    'OUTDOOR',
-    'BEAUTY & HEALTH',
-    'ELECTRONICS',
-    'AUTOMOTIVE',
-    'INDUSTRIAL',
-    'CLOTHING, SHOES & JEWELRY',
-    'ALL'
-  ]
+  // Get the active category data for mega menu
+  const getActiveCategoryData = () => {
+    if (!activeCategory || !categories.length) return null
+    
+    // Find the category in the first level
+    const category = categories.find(cat => cat.name === activeCategory)
+    if (!category || !category.children || category.children.length === 0) return null
 
-  const megaMenuData = {
-    'HOME, GARDEN & TOOLS': {
-      sections: [
-        {
-          title: 'HOME IMPROVEMENT',
-          items: [
-            'BUILDING SUPPLIES',
-            'EVENT & PARTY SUPPLIES',
-            'HEATING & COOLING',
-            'HOME DECOR',
-            'KITCHEN & BATH FIXTURES',
-            'LAWN & GARDEN EQUIPMENT',
-            'LIGHTING & CEILING FANS',
-            'POWER & HAND TOOLS',
-            'SAFETY & SECURITY',
-            'STORAGE & HOME ORGANIZATION',
-            'CLEANING SUPPLIES',
-            'HARDWARE',
-            'HEATING, COOLING & AIR QUALITY',
-            'IRONS & STEAMERS',
-            'KIDS\' HOME STORE',
-            'LIGHT BULBS',
-            'PAINTING SUPPLIES & WALL TREATMENTS',
-            'ROUGH PLUMBING',
-            'SEASONAL DECOR',
-            'STORAGE & ORGANIZATION'
-          ]
-        },
-        {
-          title: 'FURNITURE',
-          items: [
-            'BEDROOM',
-            'ACCENT FURNITURE',
-            'BATHROOM FURNITURE',
-            'FURNITURE',
-            'HOME ENTERTAINMENT',
-            'KIDS\' FURNITURE',
-            'NURSERY FURNITURE',
-            'REPLACEMENT PARTS',
-            'CAMPING FURNITURE'
-          ]
-        },
-        {
-          title: 'KITCHEN & DINING',
-          items: [
-            'BAKEWARE',
-            'COMFORT ZONE',
-            'KITCHEN & DINING ROOM',
-            'ENTRYWAY FURNITURE',
-            'GAME & RECREATION ROOM',
-            'HOME OFFICE FURNITURE',
-            'LIVING ROOM',
-            'PATIO FURNITURE',
-            'RUGS',
-            'COFFEE, TEA & ESPRESSO'
-          ]
-        }
-      ],
+    // Group children by their parent
+    const sections = category.children
+      .filter(child => child.visible !== false)
+      .map(child => ({
+        title: child.name,
+        children: child.children || []
+      }))
+
+    return {
+      sections,
       promotionalImage: {
-        title: 'UPTO 70% OFF',
-        description: 'Modern Shed Collection'
-      }
-    },
-    'OUTDOOR': {
-      sections: [
-        {
-          title: 'OUTDOOR FURNITURE',
-          items: [
-            'PATIO FURNITURE',
-            'GARDEN FURNITURE',
-            'OUTDOOR DINING SETS',
-            'OUTDOOR SEATING',
-            'UMBRELLAS & SHADES',
-            'OUTDOOR STORAGE',
-            'GARDEN DECOR'
-          ]
-        },
-        {
-          title: 'GARDEN & LANDSCAPING',
-          items: [
-            'GARDEN TOOLS',
-            'PLANTING SUPPLIES',
-            'SOIL & FERTILIZERS',
-            'GARDEN HOSES',
-            'SPRINKLERS',
-            'GARDEN LIGHTING',
-            'LANDSCAPING MATERIALS'
-          ]
-        },
-        {
-          title: 'OUTDOOR ACTIVITIES',
-          items: [
-            'CAMPING GEAR',
-            'HIKING EQUIPMENT',
-            'OUTDOOR COOKING',
-            'SPORTS EQUIPMENT',
-            'OUTDOOR GAMES',
-            'WATER SPORTS',
-            'WINTER SPORTS'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'SUMMER SALE',
-        description: 'Outdoor Collection'
-      }
-    },
-    'BEAUTY & HEALTH': {
-      sections: [
-        {
-          title: 'SKINCARE',
-          items: [
-            'FACIAL CLEANSERS',
-            'MOISTURIZERS',
-            'SERUMS & TREATMENTS',
-            'SUNSCREEN',
-            'ANTI-AGING',
-            'ACNE TREATMENT',
-            'EYE CARE',
-            'LIP CARE'
-          ]
-        },
-        {
-          title: 'MAKEUP',
-          items: [
-            'FACE MAKEUP',
-            'EYE MAKEUP',
-            'LIP PRODUCTS',
-            'NAIL CARE',
-            'MAKEUP TOOLS',
-            'BRUSHES & APPLICATORS',
-            'MAKEUP REMOVERS'
-          ]
-        },
-        {
-          title: 'HEALTH & WELLNESS',
-          items: [
-            'VITAMINS & SUPPLEMENTS',
-            'FITNESS EQUIPMENT',
-            'WEIGHT MANAGEMENT',
-            'HEALTH MONITORS',
-            'MEDICAL SUPPLIES',
-            'PERSONAL CARE',
-            'ORAL CARE'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'BEAUTY DEALS',
-        description: 'Health & Beauty'
-      }
-    },
-    'ELECTRONICS': {
-      sections: [
-        {
-          title: 'COMPUTERS & TABLETS',
-          items: [
-            'LAPTOPS',
-            'DESKTOPS',
-            'TABLETS',
-            'COMPUTER ACCESSORIES',
-            'MONITORS',
-            'KEYBOARDS & MICE',
-            'STORAGE DEVICES'
-          ]
-        },
-        {
-          title: 'MOBILE & ACCESSORIES',
-          items: [
-            'SMARTPHONES',
-            'PHONE CASES',
-            'CHARGERS & CABLES',
-            'HEADPHONES',
-            'BLUETOOTH SPEAKERS',
-            'MOBILE ACCESSORIES'
-          ]
-        },
-        {
-          title: 'HOME ELECTRONICS',
-          items: [
-            'TVS & DISPLAYS',
-            'AUDIO SYSTEMS',
-            'SMART HOME',
-            'CAMERAS & PHOTOGRAPHY',
-            'GAMING CONSOLES',
-            'SMALL APPLIANCES'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'TECH SALE',
-        description: 'Latest Electronics'
-      }
-    },
-    'AUTOMOTIVE': {
-      sections: [
-        {
-          title: 'AUTO PARTS',
-          items: [
-            'ENGINE PARTS',
-            'BRAKE COMPONENTS',
-            'FILTERS & FLUIDS',
-            'ELECTRICAL PARTS',
-            'SUSPENSION PARTS',
-            'EXHAUST SYSTEMS',
-            'COOLING SYSTEM'
-          ]
-        },
-        {
-          title: 'AUTO ACCESSORIES',
-          items: [
-            'INTERIOR ACCESSORIES',
-            'EXTERIOR ACCESSORIES',
-            'CAR ELECTRONICS',
-            'LIGHTING',
-            'TOOLS & EQUIPMENT',
-            'CLEANING SUPPLIES'
-          ]
-        },
-        {
-          title: 'MOTORCYCLE & ATV',
-          items: [
-            'MOTORCYCLE PARTS',
-            'ATV ACCESSORIES',
-            'RIDING GEAR',
-            'HELMETS',
-            'MAINTENANCE SUPPLIES'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'AUTO DEALS',
-        description: 'Car Accessories'
-      }
-    },
-    'INDUSTRIAL': {
-      sections: [
-        {
-          title: 'INDUSTRIAL EQUIPMENT',
-          items: [
-            'POWER TOOLS',
-            'HAND TOOLS',
-            'MEASURING TOOLS',
-            'SAFETY EQUIPMENT',
-            'WORKSHOP SUPPLIES',
-            'MATERIAL HANDLING'
-          ]
-        },
-        {
-          title: 'CONSTRUCTION SUPPLIES',
-          items: [
-            'BUILDING MATERIALS',
-            'HARDWARE',
-            'FASTENERS',
-            'ELECTRICAL SUPPLIES',
-            'PLUMBING SUPPLIES',
-            'INSULATION'
-          ]
-        },
-        {
-          title: 'MANUFACTURING',
-          items: [
-            'MACHINERY',
-            'PRODUCTION EQUIPMENT',
-            'QUALITY CONTROL',
-            'PACKAGING SUPPLIES',
-            'INDUSTRIAL CHEMICALS'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'INDUSTRIAL SALE',
-        description: 'Professional Tools'
-      }
-    },
-    'CLOTHING, SHOES & JEWELRY': {
-      sections: [
-        {
-          title: 'WOMEN\'S FASHION',
-          items: [
-            'DRESSES',
-            'TOPS & BLOUSES',
-            'BOTTOMS',
-            'OUTERWEAR',
-            'ACTIVEWEAR',
-            'LINGERIE',
-            'ACCESSORIES'
-          ]
-        },
-        {
-          title: 'MEN\'S FASHION',
-          items: [
-            'SHIRTS & POLOS',
-            'PANTS & SHORTS',
-            'SUITS & BLAZERS',
-            'OUTERWEAR',
-            'ACTIVEWEAR',
-            'UNDERWEAR',
-            'ACCESSORIES'
-          ]
-        },
-        {
-          title: 'SHOES & JEWELRY',
-          items: [
-            'WOMEN\'S SHOES',
-            'MEN\'S SHOES',
-            'KIDS\' SHOES',
-            'WATCHES',
-            'JEWELRY',
-            'BAGS & WALLETS',
-            'SUNGLASSES'
-          ]
-        }
-      ],
-      promotionalImage: {
-        title: 'FASHION SALE',
-        description: 'Latest Trends'
+        title: `${category.name}`,
+        description: 'Shop Now'
       }
     }
   }
+
+  const megaMenuData = getActiveCategoryData()
 
   return (
     <div className="bg-white">
@@ -453,7 +176,7 @@ export function UserHeader() {
                   <div className="flex flex-col items-center space-y-1 text-gray-700 hover:text-pink-500 transition-colors cursor-pointer">
                     <User className="w-6 h-6" />
                     <span className="text-sm font-medium">
-                      {status === 'loading' ? '.........' : session ? 'My Account' : 'Login'}
+                      {status === 'loading' ? 'Account' : session ? 'My Account' : 'Login'}
                     </span>
               
                   </div>
@@ -546,14 +269,14 @@ export function UserHeader() {
         <div className="container">
           <div className="flex items-center justify-center py-4">
             <div className="flex items-center space-x-4 sm:space-x-6 lg:space-x-8 flex-wrap justify-center">
-              {categories.map((category) => (
+              {categories.slice(0, 7).map((category) => (
                 <div
-                  key={category}
+                  key={category.id}
                   className="relative"
                   onMouseEnter={() => {
-                    if (megaMenuData[category as keyof typeof megaMenuData]) {
+                    if (category.children && category.children.length > 0) {
                       setIsMegaMenuOpen(true)
-                      setActiveCategory(category)
+                      setActiveCategory(category.name)
                     }
                   }}
                   onMouseLeave={() => {
@@ -566,23 +289,30 @@ export function UserHeader() {
                   }}
                 >
                   <Link
-                    href={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+                    href={getCategoryHierarchicalPath(category, categories)}
                     className={`text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                      activeCategory === category
+                      activeCategory === category.name
                         ? 'text-pink-500 border-b-2 border-pink-500'
                         : 'text-gray-700 hover:text-pink-500'
                     }`}
                   >
-                    {category}
+                    {category.name}
                   </Link>
                 </div>
               ))}
+              {/* All link */}
+              <Link
+                href="/products"
+                className="text-xs sm:text-sm font-medium transition-colors whitespace-nowrap text-gray-700 hover:text-pink-500"
+              >
+                All
+              </Link>
             </div>
           </div>
         </div>
 
         {/* Mega Menu Dropdown */}
-        {isMegaMenuOpen && activeCategory && megaMenuData[activeCategory as keyof typeof megaMenuData] && (
+        {isMegaMenuOpen && activeCategory && megaMenuData && (
           <div 
             className="absolute left-0 right-0 bg-white border-b shadow-lg z-50"
             onMouseEnter={() => {
@@ -604,31 +334,35 @@ export function UserHeader() {
                         <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gray-300 rounded-lg mx-auto mb-2 flex items-center justify-center">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gray-400 rounded"></div>
                         </div>
-                        <span className="text-xs text-gray-600">Modern Shed</span>
+                        <span className="text-xs text-gray-600">Shop Now</span>
                       </div>
                     </div>
                     <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold">
-                      {megaMenuData[activeCategory as keyof typeof megaMenuData].promotionalImage.title}
+                      {megaMenuData.promotionalImage.title}
                     </div>
                   </div>
                 </div>
 
                 {/* Menu Sections */}
-                {megaMenuData[activeCategory as keyof typeof megaMenuData].sections.map((section, index) => (
+                {megaMenuData.sections.map((section, index) => (
                   <div key={index} className="space-y-3 sm:space-y-4 order-2 sm:order-2">
                     <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 bg-gray-100 px-2 sm:px-3 py-1 sm:py-2 rounded text-sm sm:text-base">
                       {section.title}
                     </h3>
                     <div className="space-y-1 sm:space-y-2">
-                      {section.items.map((item) => (
-                        <Link
-                          key={item}
-                          href={`/category/${item.toLowerCase().replace(/\s+/g, '-')}`}
-                          className="block text-xs sm:text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                        >
-                          {item}
-                        </Link>
-                      ))}
+                      {section.children && section.children.length > 0 ? (
+                        section.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={getCategoryHierarchicalPath(child, categories)}
+                            className="block text-xs sm:text-sm text-gray-600 hover:text-pink-500 transition-colors"
+                          >
+                            {child.name}
+                          </Link>
+                        ))
+                      ) : (
+                        <p className="text-xs sm:text-sm text-gray-500">No subcategories</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -699,16 +433,24 @@ export function UserHeader() {
               {activeTab === 'MENU' && (
                 <div className="p-4">
                   <nav className="space-y-2">
-                    {categories.map((category) => (
+                    {categories.slice(0, 7).map((category) => (
                       <Link
-                        key={category}
-                        href={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+                        key={category.id}
+                        href={getCategoryHierarchicalPath(category, categories)}
                         className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        {category}
+                        {category.name}
                       </Link>
                     ))}
+                    {/* All link */}
+                    <Link
+                      href="/products"
+                      className="block py-3 px-2 text-gray-700 hover:text-pink-500 hover:bg-gray-50 rounded-lg transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      All
+                    </Link>
                   </nav>
                 </div>
               )}

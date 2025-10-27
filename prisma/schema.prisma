@@ -175,6 +175,133 @@ model BannerBottomImages {
   @@map("banner_bottom_images")
 }
 
+model DisplayedItems {
+  id       Int      @id @default(autoincrement())
+  category String
+  items    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("displayed_items")
+}
+
+model CategoryOne {
+  pcstId          Int      @id @default(autoincrement()) @map("pcst_id")
+  pcstImg         String   @default("no_image_400.webp") @map("pcst_img") @db.VarChar(300)
+  pcstSlug        String   @map("pcst_slug") @db.VarChar(2000)
+  pcstCat         String   @map("pcst_cat") @db.VarChar(2000)
+  totalProduct    Int      @map("total_product")
+  pcstPosition    Int      @map("pcst_position")
+  banner          String?  @db.VarChar(255)
+  imageVector     String   @map("image_vector") @db.VarChar(255)
+  cat2Lists       String   @default("[]") @map("cat2_lists") @db.Text
+  displayedItems  String   @default("[]") @map("displayed_items") @db.Text
+  seoTitle        String   @map("seoTitle") @db.VarChar(100)
+  seoDesc         String   @map("seoDesc") @db.VarChar(255)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([pcstSlug])
+  @@index([pcstCat])
+  @@index([totalProduct])
+  @@index([pcstPosition])
+  @@map("category_one")
+}
+
+model CategoryTwo {
+  psstId          Int      @id @default(autoincrement()) @map("psst_id")
+  psstImg         String   @default("no_image_400.webp") @map("psst_img") @db.VarChar(300)
+  psstPcstCat      String   @map("psst_pcst_cat") @db.VarChar(1000)
+  psstSlug        String   @map("psst_slug") @db.VarChar(2000)
+  psstSubcat       String   @map("psst_subcat") @db.VarChar(2000)
+  psstTotalProduct Int     @default(0) @map("psst_total_product")
+  psstProdHighprice String @default("0.00") @map("psst_prod_highprice") @db.VarChar(1000)
+  psstPosition    Int      @map("psst_position")
+  cat1Slug        String   @map("cat1_slug") @db.VarChar(255)
+  totalInstock    Int      @default(0) @map("total_instock")
+  totalOutstock   Int      @default(0) @map("total_outstock")
+  totalCat3       Int      @default(0) @map("total_cat3")
+  toShow          Int      @default(1) @map("toShow")
+  seoTitle        String   @map("seoTitle") @db.VarChar(100)
+  seoDesc         String   @map("seoDesc") @db.VarChar(200)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([psstPcstCat])
+  @@index([psstSlug])
+  @@index([psstSubcat])
+  @@index([psstTotalProduct])
+  @@index([psstPosition])
+  @@index([cat1Slug])
+  @@index([totalInstock])
+  @@index([totalOutstock])
+  @@index([totalCat3])
+  @@index([toShow])
+  @@map("category_two")
+}
+
+model CategoryThree {
+  pssstId          Int      @id @default(autoincrement()) @map("pssst_id")
+  pssstImg         String   @default("") @map("pssst_img") @db.VarChar(300)
+  pssstCat         String   @map("pssst_cat") @db.VarChar(200)
+  pssstSubcat      String   @map("pssst_subcat") @db.VarChar(200)
+  pssstSubsubcat   String   @map("pssst_subsubcat") @db.VarChar(200)
+  pssstSlug        String   @map("pssst_slug") @db.VarChar(200)
+  pssstTotalProduct Int     @default(0) @map("pssst_total_product")
+  pssstHighprice   String   @default("") @map("pssst_highprice") @db.VarChar(200)
+  pssstPosition    Int      @map("pssst_position")
+  cat1Slug         String   @map("cat1_slug") @db.VarChar(255)
+  cat2Slug         String   @map("cat2_slug") @db.VarChar(255)
+  totalInstock     Int      @default(0) @map("total_instock")
+  totalOutstock    Int      @default(0) @map("total_outstock")
+  cat4Slug         String   @map("cat4_slug") @db.VarChar(100)
+  cat2TotalInstock Int      @default(0) @map("cat2_total_instock")
+  seoTitle         String   @map("seoTitle") @db.VarChar(100)
+  seoDesc          String   @map("seoDesc") @db.VarChar(200)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([pssstCat])
+  @@index([pssstSubcat])
+  @@index([pssstSubsubcat])
+  @@index([pssstSlug])
+  @@index([pssstTotalProduct])
+  @@index([cat1Slug])
+  @@index([cat2Slug])
+  @@map("category_three")
+}
+
+model CategoryFour {
+  psssstId           Int      @id @default(autoincrement()) @map("psssst_id")
+  psssstImg          String   @default("") @map("psssst_img") @db.VarChar(200)
+  psssstCat          String   @map("psssst_cat") @db.VarChar(100)
+  psssstSubcat       String   @map("psssst_subcat") @db.VarChar(100)
+  psssstSubsubcat    String   @map("psssst_subsubcat") @db.VarChar(100)
+  psssstSubsubsubcat String   @map("psssst_subsubsubcat") @db.VarChar(100)
+  psssstSlug         String   @map("psssst_slug") @db.VarChar(100)
+  psssstTotalProduct Int      @default(0) @map("psssst_total_product")
+  psssstHighprice    Decimal  @default(0.00) @map("psssst_highprice") @db.Decimal(11, 2)
+  psssstPosition     Int      @map("psssst_position")
+  cat1Slug           String   @map("cat1_slug") @db.VarChar(255)
+  cat2Slug           String   @map("cat2_slug") @db.VarChar(255)
+  cat3Slug           String   @map("cat3_slug") @db.VarChar(255)
+  totalInstock       Int      @default(0) @map("total_instock")
+  totalOutstock      Int      @default(0) @map("total_outstock")
+  seoTitle           String   @map("seoTitle") @db.VarChar(100)
+  seoDesc            String   @map("seoDesc") @db.VarChar(200)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([psssstCat])
+  @@index([psssstSubsubsubcat])
+  @@index([psssstSlug])
+  @@index([psssstTotalProduct])
+  @@index([cat1Slug])
+  @@index([cat2Slug])
+  @@index([cat3Slug])
+  @@map("category_four")
+}
+
 enum Role {
   USER
   ADMIN
@@ -184,4 +311,16 @@ enum Role {
 enum BannerType {
   IMAGE
   VIDEO
+}
+
+model SiteSettings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String   @db.Text
+  location    String   @default("body") @db.VarChar(20) // 'head' or 'body'
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("site_settings")
 }

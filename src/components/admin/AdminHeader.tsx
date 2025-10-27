@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { useTheme } from '@/contexts/ThemeContext'
+import Link from 'next/link'
 import { 
   Search, 
   Bell, 
@@ -22,6 +23,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
   const { theme, toggleTheme } = useTheme()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const { data: session } = useSession()
 
   // Ensure client-side only rendering to prevent hydration issues
   useEffect(() => {
@@ -30,7 +32,7 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
 
   const handleLogout = async () => {
     await signOut({ 
-      callbackUrl: '/auth/signin',
+      callbackUrl: '/~admin',
       redirect: true 
     })
   }
@@ -60,7 +62,9 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
             </div>
             <div className="flex items-center space-x-2 p-2 rounded-lg">
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-white">JD</span>
+                <span className="text-sm font-medium text-white">
+                  {session?.user?.firstName?.[0] || ''}{session?.user?.lastName?.[0] || ''}
+                </span>
               </div>
               <div className="hidden sm:block text-left">
                 <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
@@ -131,11 +135,17 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
               className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-white">JD</span>
+                <span className="text-sm font-medium text-white">
+                  {session?.user?.firstName?.[0] || ''}{session?.user?.lastName?.[0] || ''}
+                </span>
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-medium text-gray-900">John Doe</p>
-                <p className="text-xs text-gray-500">Admin</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {session?.user?.firstName} {session?.user?.lastName}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {session?.user?.isSuperAdmin ? 'Super Admin' : session?.user?.isAdmin ? 'Admin' : 'User'}
+                </p>
               </div>
             </button>
 
@@ -146,10 +156,16 @@ export function AdminHeader({ onMobileMenuToggle }: AdminHeaderProps) {
                   <User className="w-4 h-4" />
                   <span>My Profile</span>
                 </button>
-                <button className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </button>
+                {session?.user?.isSuperAdmin && (
+                  <Link
+                    href="/~admin/site-settings"
+                    className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Site Settings</span>
+                  </Link>
+                )}
                 <div className="border-t border-gray-200 my-1"></div>
                 <button
                   onClick={handleLogout}

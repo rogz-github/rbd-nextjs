@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -16,7 +16,9 @@ import {
   Tag,
   Loader2,
   Upload,
-  FileText
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { PricingDisplay } from '@/components/PricingDisplay'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
@@ -41,8 +43,21 @@ interface Product {
   createdAt: string
 }
 
+interface PaginationInfo {
+  page: number
+  limit: number
+  total: number
+  pages: number
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,7 +83,7 @@ export default function ProductsPage() {
     }, 500)
   }
 
-  const fetchProducts = async (forceRefresh = false) => {
+  const fetchProducts = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true)
       setError(null)
@@ -76,7 +91,8 @@ export default function ProductsPage() {
       const params = new URLSearchParams()
       if (searchTerm) params.append('search', searchTerm)
       if (statusFilter !== 'all') params.append('status', statusFilter)
-      params.append('limit', '50') // Get more products for better UX
+      params.append('page', pagination.page.toString())
+      params.append('limit', pagination.limit.toString())
       
       // Add cache-busting timestamp
       if (forceRefresh) {
@@ -105,25 +121,26 @@ export default function ProductsPage() {
         forceRefresh 
       })
       setProducts(data.products || [])
+      if (data.pagination) {
+        setPagination(data.pagination)
+      }
     } catch (err) {
       console.error('Error fetching products:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch products')
     } finally {
       setLoading(false)
     }
-  }
+  }, [pagination.page, pagination.limit, searchTerm, statusFilter])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }))
+  }, [searchTerm, statusFilter])
 
   // Fetch products from API
   useEffect(() => {
     fetchProducts()
-  }, [searchTerm, statusFilter])
-
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesStatus = statusFilter === 'all' || product.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  }, [fetchProducts])
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -245,8 +262,9 @@ export default function ProductsPage() {
 
         {/* Products Grid */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product) => (
               <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
                 {/* Product Image */}
                 <div className="aspect-square bg-gray-100 relative">
@@ -305,12 +323,105 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {pagination.pages > 1 && (
+              <div className="mt-8 flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-4">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1 || loading}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                    disabled={pagination.page === pagination.pages || loading}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{' '}
+                      <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span>
+                      {' '}to{' '}
+                      <span className="font-medium">
+                        {Math.min(pagination.page * pagination.limit, pagination.total)}
+                      </span>
+                      {' '}of{' '}
+                      <span className="font-medium">{pagination.total}</span>
+                      {' '}results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                        disabled={pagination.page === 1 || loading}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      
+                      {/* Page numbers */}
+                      {Array.from({ length: pagination.pages }, (_, i) => i + 1)
+                        .filter(page => {
+                          // Show first page, last page, current page, and pages around current
+                          return (
+                            page === 1 ||
+                            page === pagination.pages ||
+                            (page >= pagination.page - 1 && page <= pagination.page + 1)
+                          )
+                        })
+                        .map((page, index, array) => {
+                          // Add ellipsis before
+                          const showPrevEllipsis = index > 0 && array[index - 1] !== page - 1
+                          
+                          return (
+                            <div key={page} className="flex items-center">
+                              {showPrevEllipsis && (
+                                <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                  ...
+                                </span>
+                              )}
+                              <button
+                                onClick={() => setPagination(prev => ({ ...prev, page }))}
+                                disabled={loading}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  pagination.page === page
+                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              >
+                                {page}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      
+                      <button
+                        onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                        disabled={pagination.page === pagination.pages || loading}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Empty State */}
-        {!loading && !error && filteredProducts.length === 0 && (
+        {!loading && !error && products.length === 0 && (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
