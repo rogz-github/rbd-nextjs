@@ -47,7 +47,7 @@ USER (Rogz):
 
 == PUSH NEW CHANGES FROM LOCAL  TO GITHUB
 git add .
-git commit -m "Changes 102725 - 4:51pm"
+git commit -m "Changes 102725 - 6:04pm"
 git push origin main
 
 
@@ -58,3 +58,10 @@ npm run import:products => import product from doba csv file in the csv_file dir
 rbd-nextjs-5fn3.vercel.app
 
 
+to delete all table in neon
+- DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+
+
+- to create cleaneare migration
+npx prisma migrate dev --name init
