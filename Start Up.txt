@@ -47,7 +47,7 @@ USER (Rogz):
 
 == PUSH NEW CHANGES FROM LOCAL  TO GITHUB
 git add .
-git commit -m "Changes 102725 - 6:50pm"
+git commit -m "Changes 102725 - 7:25pm"
 git push origin main
 
 
@@ -55,7 +55,7 @@ git push origin main
 GENERATOR
 npm run import:products => import product from doba csv file in the csv_file directory
 
-rbd-nextjs-5fn3.vercel.app
+https://rbd-nextjs-rogzgithubs-projects.vercel.app
 
 
 to delete all table in neon
